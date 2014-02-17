@@ -67,32 +67,10 @@
 \maketitle
 \tableofcontents
 \newpage
-
 \section{A space-efficient doubly-linked list}
-\begin{lstlisting}
-void main() {
-  dlist list = {0};
-  int i = 5;
-  int i1 = 6;
-  int i2 = 7;
-  bool b = 0;
-  bool b1 = 1;
-  insert(&list,&i,b);
-  insert(&list,&i1,b);
-  insert(&list,&i2,b);
-  bool (*match)(item*) = find;
-  int* s = search(&list,match);
-  printf("The search found:%2d\n",*s);
-  int* p = extract(&list,b);
-  printf("%d\n",*p);
-  int* p1 = extract(&list,b);
-  printf("%d\n",*p1);
-  int* p2 = extract(&list,b);
-  printf("%d\n",*p2);
-}
-\end{lstlisting}
-
-\subsection{Insert and extract}
+The trick in the exercise is how to save two pointer addresses in one pointer. This can, in the case of a doubly-linked list be done with XOR. Here every element holds the pointer to the element behind it XOR'ed with the pointer to the element in front of it, except for the head and the tail, as they would only need to point inwards or outwards. We use the notation that $P_n$ is the pointer of element $n$, and $p_n$ is the pointer to element $n$. With this system we can find the pointer to the element $p_n$ by the following logic: $ p_n = P_{n-1} \oplus p_{n-2} = P_{n+1} \oplus p_{n+2} $. And since we know the pointer to the head: $p_1$, as well as the pointer of the head $P_1$, which points to element 2 we can find: $p_3 = p_1 \oplus P_2$, and this way we can traverse the list. 
+\subsection{Insert}
+For inserting we just need to set the pointer of the head or tail to the new element, and we need to XOR the pointer of the head/tail, with the pointer of the new head. 
 \begin{lstlisting}
 void insert(dlist *this, item *thing, bool atTail) { 
   node* n = (node*) malloc(sizeof(node));
@@ -108,7 +86,11 @@ void insert(dlist *this, item *thing, bool atTail) {
   (*n).ptr = dlistNode;
   (atTail) ? ((*this).tail = n) : ((*this).head = n);
 }
-
+\end{lstlisting}
+\newpage
+\subsection{extract}
+For extraction we simple remove the head or tail, and XOR the next element in line with the pointer to the head or tail, furthermore we change the lists head or tail with the new pointer.
+\begin{lstlisting}
 item* extract(dlist *this, bool atTail) {
   node* returnNode = (*this).head;
   item* value;
@@ -134,8 +116,9 @@ item* extract(dlist *this, bool atTail) {
   return value;
 }
 \end{lstlisting}
-
+\newpage
 \subsection{Search}
+Search works by traversing the list in the manner described in the beginning of this section, and then using the function pointer of the parameters, to match on all of the elements. We have chosen to return \texttt{NULL} in the case where no element matches. As this search function at most looks at every single element, we can see that it holds a runtime of $O(n)$
 \begin{lstlisting}
 item* search(dlist *this, bool (*matches)(item*)){
   node* itNode = this -> head;
@@ -154,13 +137,10 @@ item* search(dlist *this, bool (*matches)(item*)){
   }
   return NULL;
 }
-
-bool find(item* thing) { 
-  return (*((int*)thing) == 5);
-} 
 \end{lstlisting}
 
 \subsection{Reverse}
+Reverse is simple, as the only thing needed to be done is to swap the head with the tail. This of course yields a run time of $O(1)$.
 \begin{lstlisting}
 void reverse (dlist *this) {
   void* temp = ((*this).head);
@@ -168,6 +148,36 @@ void reverse (dlist *this) {
   (*this).tail = temp;
 }
 \end{lstlisting}
+\newpage
+\subsection{Testing}
+The following main function holds the test cases that we run, with insertion and extraction at the head and tail, furthermore a search function that finds elements that have a thing that is equal to the integer 5, is implemented. And with that we test the search function.
+\begin{lstlisting}
+void main() {
+  dlist list = {0};
+  int i = 5;
+  int i1 = 6;
+  int i2 = 7;
+  bool b = 0;
+  bool b1 = 1;
+  insert(&list,&i,b);
+  insert(&list,&i1,b);
+  insert(&list,&i2,b);
+  bool (*match)(item*) = find;
+  int* s = search(&list,match);
+  printf("The search found:%2d\n",*s);
+  int* p = extract(&list,b);
+  printf("%d\n",*p);
+  int* p1 = extract(&list,b);
+  printf("%d\n",*p1);
+  int* p2 = extract(&list,b);
+  printf("%d\n",*p2);
+}
+
+bool find(item* thing) { 
+  return (*((int*)thing) == 5);
+} 
+\end{lstlisting}
+\newpage
 \section{Buenos system calls for basic I/O}
 \subsection{Implement system calls \texttt{read} and \texttt{write}}
 We start by adding the appropriate system call cases to \texttt{proc/syscall.c}. In both \texttt{SYSCALL\_READ} and \texttt{SYSCALL\_WRITE} we call the appropriate functions defined in \texttt{kernel/read.h} and \texttt{kernel/write.h}. The parameters are extracted from \texttt{MIPS} registers \texttt{A1}, \texttt{A2} and \texttt{A3} and the result is placed in the return register \texttt{V0}.
