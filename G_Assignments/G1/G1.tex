@@ -245,7 +245,7 @@ int write_kernel(int fhandle,const void *buffer, int length){
 \end{lstlisting}
 
 \subsection{\texttt{tests/readwrite.c}}
-Testing blabla - Tobias skriv noget her :)
+The testing is executed as a small game, where the objective is to guess a number, a wrong answer results in a message telling the user, whether the number to be guessed is over, or under the guessed number. We test the read and write in this, as the game would not be playable, if either did not work.
 \begin{lstlisting}
 #include "tests/lib.h"
 
@@ -257,7 +257,7 @@ int main(void)
   char smaller[13] = {'k',' ','i','s',' ','s','m','a','l','l','e','r','\n'};
   char correct[8] = {'c','o','r','r','e','c','t','\n'};
   int l, len;
-  int k = () % 100;
+  int k = 39;
   while (1) {
     syscall_read(0,buffer,1);
     syscall_write(1,buffer,1);

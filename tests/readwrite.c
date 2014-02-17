@@ -8,7 +8,7 @@ int main(void)
   char smaller[13] = {'k',' ','i','s',' ','s','m','a','l','l','e','r','\n'};
   char correct[8] = {'c','o','r','r','e','c','t','\n'};
   int l, len;
-  int k = () % 100;
+  int k = 32;
   while (1) {
     syscall_read(0,buffer,1);
     syscall_write(1,buffer,1);
