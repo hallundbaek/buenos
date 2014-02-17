@@ -1,0 +1,285 @@
+\documentclass[a4paper,12pt]{article}
+
+% Standard configuration
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{upquote}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\usepackage[margin=1.3in]{geometry}
+\usepackage[numbers]{natbib}
+
+% Listings configuration
+\usepackage{color}
+\definecolor{listinggray}{gray}{0.9}
+\usepackage{multirow,bigdelim}
+\usepackage{listings}
+\lstset{
+	language=,
+	literate=
+		{æ}{{\ae}}1
+		{ø}{{\o}}1
+		{å}{{\aa}}1
+		{Æ}{{\AE}}1
+		{Ø}{{\O}}1
+		{Å}{{\AA}}1,
+	backgroundcolor=\color{listinggray},
+	tabsize=3,
+	rulecolor=,
+	basicstyle=\scriptsize,
+	upquote=true,
+	aboveskip={1.5\baselineskip},
+	columns=fixed,
+	showstringspaces=false,
+	extendedchars=true,
+	breaklines=true,
+	prebreak =\raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+	frame=single,
+	showtabs=false,
+	showspaces=false,
+	showstringspaces=false,
+	identifierstyle=\ttfamily,
+	keywordstyle=\color[rgb]{0,0,1},
+	commentstyle=\color[rgb]{0.133,0.545,0.133},
+	stringstyle=\color[rgb]{0.627,0.126,0.941},
+}
+%captions on listings
+\usepackage[center,font=small,labelfont=bf,textfont=it]{caption}
+
+% Header configuration
+\usepackage{fancyhdr}
+\lhead[]{} %clear standard settings
+\chead[]{} %clear standard settings
+\rhead[]{} %\rightmark} %current section
+\lfoot[]{} %clear standard settings
+\cfoot[]{\thepage} %current page number 
+\rfoot[]{} %clear standard settings
+
+\title{OSM\\G assignment 1}
+\author{Tobias Hallundbæk Petersen (xtv657)\\Ola Rønning (vdl761)\\Nikolaj Høyer (ctl533)}
+\date{February 17, 2014}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\section{A space-efficient doubly-linked list}
+\begin{lstlisting}
+void main() {
+  dlist list = {0};
+  int i = 5;
+  int i1 = 6;
+  int i2 = 7;
+  bool b = 0;
+  bool b1 = 1;
+  insert(&list,&i,b);
+  insert(&list,&i1,b);
+  insert(&list,&i2,b);
+  bool (*match)(item*) = find;
+  int* s = search(&list,match);
+  printf("The search found:%2d\n",*s);
+  int* p = extract(&list,b);
+  printf("%d\n",*p);
+  int* p1 = extract(&list,b);
+  printf("%d\n",*p1);
+  int* p2 = extract(&list,b);
+  printf("%d\n",*p2);
+}
+\end{lstlisting}
+
+\subsection{Insert and extract}
+\begin{lstlisting}
+void insert(dlist *this, item *thing, bool atTail) { 
+  node* n = (node*) malloc(sizeof(node));
+  (*n).thing = thing;
+  (*n).ptr = n;
+  if((*this).head == NULL) {     
+    (*this).tail = n;
+    (*this).head = n;
+    return;
+  }
+  node* dlistNode = (atTail) ? (*this).tail : (*this).head;  
+  dlistNode -> ptr = (node*) ((long) dlistNode -> ptr ^ (long) n); 
+  (*n).ptr = dlistNode;
+  (atTail) ? ((*this).tail = n) : ((*this).head = n);
+}
+
+item* extract(dlist *this, bool atTail) {
+  node* returnNode = (*this).head;
+  item* value;
+  if(returnNode == ((*returnNode).ptr)) {
+    (*this).tail = NULL;
+    (*this).head = NULL;
+    value = (*returnNode).thing;
+    free(returnNode);
+    return value;
+  }
+  if (atTail) {
+    returnNode = (*this).tail;
+    (*this).tail = (*returnNode).ptr;
+    (*this).tail -> ptr = (node*) ((long)(*this).tail -> ptr ^ (long) returnNode);
+    value = (*returnNode).thing;
+    free(returnNode);
+    return value;
+  }  
+  (*this).head = (*returnNode).ptr;
+  (*this).head -> ptr = (node*) ((long)(*this).head -> ptr ^ (long) returnNode);
+  value = (*returnNode).thing;
+  free(returnNode);
+  return value;
+}
+\end{lstlisting}
+
+\subsection{Search}
+\begin{lstlisting}
+item* search(dlist *this, bool (*matches)(item*)){
+  node* itNode = this -> head;
+  node* oldPtr = (node*) 0;
+  node* tempPtr;
+  if (matches(itNode -> thing)) {
+    return itNode -> thing;
+  }
+  while (itNode != this -> tail) {
+    tempPtr = itNode;
+    itNode = (node*) ((long) itNode -> ptr ^ (long) oldPtr);
+    oldPtr = tempPtr;
+    if (matches(itNode -> thing)) {
+      return itNode -> thing;
+    }
+  }
+  return NULL;
+}
+
+bool find(item* thing) { 
+  return (*((int*)thing) == 5);
+} 
+\end{lstlisting}
+
+\subsection{Reverse}
+\begin{lstlisting}
+void reverse (dlist *this) {
+  void* temp = ((*this).head);
+  (*this).head = (*this).tail;
+  (*this).tail = temp;
+}
+\end{lstlisting}
+\section{Buenos system calls for basic I/O}
+\subsection{Implement system calls \texttt{read} and \texttt{write}}
+We start by adding the appropriate system call cases to \texttt{proc/syscall.c}. In both \texttt{SYSCALL\_READ} and \texttt{SYSCALL\_WRITE} we call the appropriate functions defined in \texttt{kernel/read.h} and \texttt{kernel/write.h}. The parameters are extracted from \texttt{MIPS} registers \texttt{A1}, \texttt{A2} and \texttt{A3} and the result is placed in the return register \texttt{V0}.
+\begin{lstlisting}
+...
+    switch(user_context->cpu_regs[MIPS_REGISTER_A0]) {
+    case SYSCALL_HALT:
+        halt_kernel();
+        break;
+    case SYSCALL_READ:
+        user_context->cpu_regs[MIPS_REGISTER_V0] =
+            syscall_read(
+              (int) user_context->cpu_regs[MIPS_REGISTER_A1],
+              (void*) user_context->cpu_regs[MIPS_REGISTER_A2],
+              (int) user_context->cpu_regs[MIPS_REGISTER_A3]
+            );
+        break;
+    case SYSCALL_WRITE:
+        user_context->cpu_regs[MIPS_REGISTER_V0] =
+            syscall_write(
+              (int) user_context->cpu_regs[MIPS_REGISTER_A1],
+              (const void*) user_context->cpu_regs[MIPS_REGISTER_A2],
+              (int) user_context->cpu_regs[MIPS_REGISTER_A3]
+            );
+        break;
+    default: 
+        KERNEL_PANIC("Unhandled system call\n");
+    }
+...
+\end{lstlisting}
+We now implement the functions defined in \texttt{kernel/read.h} and \texttt{kernel/write.h} in files \texttt{kernel/read.c} and \texttt{kernel/write.c}
+
+\subsubsection{\texttt{kernel/read.c}}
+The \texttt{read} function simply gets the generic \texttt{TTY} device driver and reads input into the \texttt{buffer}. We also make sure that our \texttt{fhandle} is 0 as we expect it would be in the read call - otherwise 0 characters are read and 0 returned.
+
+\begin{lstlisting}
+#include "kernel/read.h"
+#include "drivers/gcd.h"
+#include "drivers/device.h"
+
+int read_kernel(int fhandle, void *buffer, int length){
+  int len;
+  if (fhandle != 0) {
+    return 0;
+  }
+  device_t *dev;
+  gcd_t *gcd;
+  dev = device_get(YAMS_TYPECODE_TTY, 0 );
+  gcd = (gcd_t *)dev->generic_device;
+  len = gcd->read(gcd, buffer, length);
+  return len;
+}
+\end{lstlisting}
+
+\subsubsection{\texttt{kernel/write.c} }
+The \texttt{write} function is very similar, except that it writes using the generic device driver instead of reading.
+
+\begin{lstlisting}
+#include "kernel/write.h"
+#include "drivers/gcd.h"
+#include "drivers/device.h"
+
+int write_kernel(int fhandle,const void *buffer, int length){
+  int len;
+  if (fhandle != 1) {
+    return 0;
+  }
+  device_t *dev;
+  gcd_t *gcd;
+  dev = device_get(YAMS_TYPECODE_TTY, 0 );
+  gcd = (gcd_t *)dev->generic_device;
+  len = gcd->write(gcd, buffer, length);
+  return len;
+}
+\end{lstlisting}
+
+\subsection{\texttt{tests/readwrite.c}}
+Testing blabla - Tobias skriv noget her :)
+\begin{lstlisting}
+#include "tests/lib.h"
+
+int main(void)
+{
+  char buffer[1];
+  char newline[1] = {'\n'};
+  char larger[12] = {'k',' ','i','s',' ','l','a','r','g','e','r','\n'};
+  char smaller[13] = {'k',' ','i','s',' ','s','m','a','l','l','e','r','\n'};
+  char correct[8] = {'c','o','r','r','e','c','t','\n'};
+  int l, len;
+  int k = () % 100;
+  while (1) {
+    syscall_read(0,buffer,1);
+    syscall_write(1,buffer,1);
+    l = (buffer[0] - '0')*10;
+    syscall_read(0,buffer,1);
+    syscall_write(1,buffer,1);
+    syscall_write(1,newline,1);
+    l += (buffer[0] - '0');
+    if (l < k) {
+      len = 12;
+      syscall_write(1, larger, len);
+    } else if (l > k) { 
+      len = 13;
+      syscall_write(1, smaller, len);
+    } else {
+      len = 8;
+      syscall_write(1, correct, len);
+      break;
+    }
+  }
+  syscall_halt();
+  return 0;
+}
+\end{lstlisting}
+\end{document}
