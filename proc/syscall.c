@@ -39,8 +39,36 @@
 #include "kernel/panic.h"
 #include "lib/libc.h"
 #include "kernel/assert.h"
-#include "kernel/read.h"
-#include "kernel/write.h"
+#include "drivers/device.h"
+#include "drivers/gcd.h"
+
+int syscall_write(uint32_t fd, char *s, int len)
+{
+    fd = fd;
+    /* Not a G1 solution */
+    if (len > 0) {
+        kprintf("%c", *s);
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+int syscall_read(uint32_t fd, char *s, int len)
+{
+    fd = fd;
+    len = len;
+    /* Not a G1 solution */
+    ((gcd_t *)(device_get(YAMS_TYPECODE_TTY, 0)->generic_device))->read((gcd_t *)(device_get(YAMS_TYPECODE_TTY, 0)->generic_device), s, 1);
+    return 1;
+}
+
+#define V0 user_context->cpu_regs[MIPS_REGISTER_V0]
+#define A0 user_context->cpu_regs[MIPS_REGISTER_A0]
+#define A1 user_context->cpu_regs[MIPS_REGISTER_A1]
+#define A2 user_context->cpu_regs[MIPS_REGISTER_A2]
+#define A3 user_context->cpu_regs[MIPS_REGISTER_A3]
+
 /**
  * Handle system calls. Interrupts are enabled when this function is
  * called.
@@ -63,19 +91,15 @@ void syscall_handle(context_t *user_context)
     case SYSCALL_HALT:
         halt_kernel();
         break;
-    case SYSCALL_READ: ;
+    case SYSCALL_WRITE:
         user_context->cpu_regs[MIPS_REGISTER_V0] =
-            read_kernel(user_context->cpu_regs[MIPS_REGISTER_A1], 
-                        (void*) (user_context->cpu_regs[MIPS_REGISTER_A2]),
-                        user_context->cpu_regs[MIPS_REGISTER_A3]);
+            syscall_write(A1, (char *)A2, A3);
         break;
-    case SYSCALL_WRITE: ;
+    case SYSCALL_READ:
         user_context->cpu_regs[MIPS_REGISTER_V0] =
-            write_kernel(user_context->cpu_regs[MIPS_REGISTER_A1], 
-                        (void*) (user_context->cpu_regs[MIPS_REGISTER_A2]),
-                        user_context->cpu_regs[MIPS_REGISTER_A3]);
+            syscall_read(A1, (char *)A2, A3);
         break;
-    default: 
+    default:
         KERNEL_PANIC("Unhandled system call\n");
     }
 

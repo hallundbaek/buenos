@@ -45,12 +45,16 @@
 #include "vm/vm.h"
 #include "vm/pagepool.h"
 
+#include "kernel/spinlock.h"
 
 /** @name Process startup
  *
- * This module contains a function to start a userland process.
+ * This module contains facilities for managing userland process.
  */
 
+process_control_block_t process_table[CONFIG_MAX_PROCESSES];
+
+static spinlock_t process_lock;
 /**
  * Starts one userland process. The thread calling this function will
  * be used to run the process and will therefore never return from
@@ -63,8 +67,11 @@
  * @executable The name of the executable to be run in the userland
  * process
  */
-void process_start(const char *executable)
+void process_start(process_id_t pid)
 {
+    spinlock_acquire(&process_lock);
+    const char* executable = process_table[(int) pid].name;
+    spinlock_release(&process_lock);
     thread_table_t *my_entry;
     pagetable_t *pagetable;
     uint32_t phys_page;
@@ -185,6 +192,69 @@ void process_start(const char *executable)
     thread_goto_userland(&user_context);
 
     KERNEL_PANIC("thread_goto_userland failed.");
+}
+void process_init() {
+  int i;
+  spinlock_reset(&process_lock);
+  for (i=0; i<CONFIG_MAX_PROCESSES; i++) {
+    process_table[i].state        = PROC_FREE;
+    process_table[i].id           = -1;
+    process_table[i].parentid     = -1;
+    process_table[i].name[0]      = '\0'; 
+    process_table[i].retval       = -1;
+  }
+}
+
+process_id_t process_spawn(const char *executable) {
+  int pid;
+  spinlock_acquire(&process_lock);
+  for (pid = 0; pid < 64; pid++) {
+    if (process_table[pid].state == PROC_FREE) {
+      break;
+    }
+  }
+  process_table[pid].state = PROC_READY;
+  process_table[pid].parentid = -1;
+  process_table[pid].id = pid;
+  stringcopy(process_table[pid].name,executable,CONFIG_MAX_NAME);
+  process_start(pid);
+  spinlock_release(&process_lock);
+  return pid;
+}
+
+/* Stop the process and the thread it runs in. Sets the return value as well */
+void process_finish(int retval) {
+  spinlock_acquire(&process_lock);
+  process_id_t current_process = process_get_current_process();
+  thread_table_t thr;
+  thr = *thread_get_current_thread_entry();
+  vm_destroy_pagetable(thr.pagetable);
+  thr.pagetable = NULL;
+  thread_finish();
+  process_table[current_process].state = PROC_FREE;
+  process_table[current_process].retval = retval;
+  spinlock_release(&process_lock);
+}
+
+int process_join(process_id_t pid) {
+  _interrupt_set_state(_interrupt_disable());
+  _interrupt_set_state(_interrupt_enable());
+  pid = pid;
+  return 0;
+} 
+
+process_id_t process_get_current_process(void)
+{
+    return thread_get_current_thread_entry()->process_id;
+}
+
+process_control_block_t *process_get_current_process_entry(void)
+{
+    return &process_table[process_get_current_process()];
+}
+
+process_control_block_t *process_get_process_entry(process_id_t pid) {
+    return &process_table[pid];
 }
 
 /** @} */
