@@ -168,6 +168,9 @@ process_id_t process_spawn(const char *executable) {
 
 \subsubsection{\texttt{process\_finish}}
 
+The process-finish function gets the current process, sets it as a \texttt{ZOMBIE} and sets its return value. It then wakes up all threads for the current process. This requires both interrupts to be disabled, since we need to use to sleep queue, and a spin lock, since we need to access the process table.
+
+We then destroy the page table of the thread and finishes the thread.
 
 \begin{lstlisting}
 /* Stop the process and the thread it runs in. Sets the return value as well */
@@ -178,7 +181,7 @@ void process_finish(int retval) {
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_lock);
   process_id_t current_process = process_get_current_process();
-  process_table[current_process].state = PROC_DYING;
+  process_table[current_process].state = PROC_ZOMBIE;
   process_table[current_process].retval = retval;
   sleepq_wake_all(&(process_table[current_process]));
   spinlock_release(&process_lock);
@@ -192,7 +195,7 @@ void process_finish(int retval) {
 \end{lstlisting}
 
 \subsubsection{\texttt{process\_join}}
-
+The process-join function disables interrupts whilst waiting for the child process to finish, this function can only be called by parent process. The child process is added to the sleep queue and the threads are switched, which is continued till the childprocess has finished. When the child process has finished its return value is stored and the childprocess is freed. The return value of the process is returned by the join function.
 
 \begin{lstlisting}
 int process_join(process_id_t pid) {
@@ -266,4 +269,9 @@ case SYSCALL_JOIN:
 ...
 \end{lstlisting}
 
+\section{Testing}
+We test bla and abl
+\begin{lstlisting}
+Blabla tests
+\end{lstlisting}
 \end{document}
