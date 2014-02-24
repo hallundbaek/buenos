@@ -80,15 +80,14 @@ void process_start(process_id_t pid)
     int i;
 
     interrupt_status_t intr_status;
-    kprintf( process_table[pid].name );
-
+    
     my_entry = thread_get_current_thread_entry();
-    kprintf("%d\n", thread_get_current_thread());
     /* If the pagetable of this thread is not NULL, we are trying to
        run a userland process for a second time in the same thread.
        This is not possible. */
     KERNEL_ASSERT(my_entry->pagetable == NULL);
-
+    
+    my_entry->process_id = pid;
     pagetable = vm_create_pagetable(thread_get_current_thread());
     KERNEL_ASSERT(pagetable != NULL);
 
@@ -265,7 +264,7 @@ void process_finish(int retval) {
   process_id_t current_process = process_get_current_process();
   process_table[current_process].state = PROC_DYING;
   process_table[current_process].retval = retval;
-  sleepq_wake_all(&process_table[current_process]);
+  sleepq_wake_all(&(process_table[current_process]));
   spinlock_release(&process_lock);
   _interrupt_set_state(intr_status);
 
@@ -277,23 +276,20 @@ void process_finish(int retval) {
 
 int process_join(process_id_t pid) {
   interrupt_status_t intr_status;
-  process_control_block_t child_process;  
   int retval;
 
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_lock);
-  child_process = process_table[pid];
 
-  if (process_get_current_process() != child_process.parentid) return -1;
-
-  while (child_process.state != PROC_DYING) {
-    sleepq_add(&child_process);
+  if (process_get_current_process() != process_table[pid].parentid) return -1;
+  while (process_table[pid].state != PROC_DYING) {
+    sleepq_add(&(process_table[pid]));
     spinlock_release(&process_lock);
     thread_switch();
     spinlock_acquire(&process_lock);
   }
 
-  retval = child_process.retval;
+  retval = process_table[pid].retval;
   spinlock_release(&process_lock);
   _interrupt_set_state(intr_status);
 
