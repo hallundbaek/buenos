@@ -95,51 +95,28 @@ typedef struct {
 \end{lstlisting}
 
 \subsection{Implement a library of helper functions}
-
+We start by modifying the existing \texttt{process\_start} function, making it take a process id as input, instead of an executable. We make sure that the thread entry \texttt{my\_entry} gets the process id of the input, and also we modify the \texttt{file = ...} line to update the process table with the process name, as well as opening the file. This also requires a spinlock, to prevent corruption of the process table.
 \begin{lstlisting}
 void process_start(process_id_t pid)
 {
-    thread_table_t *my_entry;
-    pagetable_t *pagetable;
-    uint32_t phys_page;
-    context_t user_context;
-    uint32_t stack_bottom;
-    elf_info_t elf;
-    openfile_t file;
-
-    int i;
-
-    interrupt_status_t intr_status;
-    
-    my_entry = thread_get_current_thread_entry();
-    /* If the pagetable of this thread is not NULL, we are trying to
-       run a userland process for a second time in the same thread.
-       This is not possible. */
-    KERNEL_ASSERT(my_entry->pagetable == NULL);
-    
+    ...
     my_entry->process_id = pid;
-    pagetable = vm_create_pagetable(thread_get_current_thread());
-    KERNEL_ASSERT(pagetable != NULL);
-
-    intr_status = _interrupt_disable();
-    my_entry->pagetable = pagetable;
-    _interrupt_set_state(intr_status);
+    ...
     spinlock_acquire(&process_lock);
     file = vfs_open((char *)process_table[pid].name);
     spinlock_release(&process_lock);
+    ...
 \end{lstlisting}
 
+We also need a helper function, which creates a new process id. Such a function is defined below. We look through the process table and checks for a free process. This is then returned. Also, a spinlock is required when accessing the process table. If this in some way or another fails, $-1$ is returned.
 \begin{lstlisting}
-
 process_id_t process_new_id() {
   int pid;
   process_control_block_t process;
   spinlock_acquire(&process_lock);
   for (pid = 0; pid < CONFIG_MAX_PROCESSES; pid ++) {
     process = process_table[pid];
-    if (process.state == PROC_FREE || (process.state == PROC_DYING && 
-       (process.parentid < 0 || ( process_table[process.parentid].state == PROC_DYING &&
-        process.children ==0)))){
+    if (process.state == PROC_FREE){
       process.parentid = -1;
       process.children = 0;
       process.state = PROC_NOTFREE;
@@ -153,6 +130,11 @@ process_id_t process_new_id() {
 \end{lstlisting}
 
 \subsubsection{\texttt{process\_spawn}}
+
+When spawning a process, we give an executable as input and return its process id. Thus, we need the helper function described above - we start by acquiring an available process id, then update our process table. Again, we apply a spinlock before making changes to the table. The parent process for the new process must be the current running process, hence \texttt{parentid} is set with the value of \texttt{process\_get\_current\_process()}. We also use \texttt{stringcopy} to place the name of the executable in the table. The other table values should be clear from the context.
+
+We then make a check - if \texttt{pid} is \texttt{0}, then it is our init process running. If this is the case, we simply set the process as running and return. Otherwise, its some sub-process and we create a new thread for the child process and run it. Also, we increment the parents child-counter.
+
 \begin{lstlisting}
 process_id_t process_spawn(const char *executable) {
   process_id_t pid;
@@ -185,6 +167,8 @@ process_id_t process_spawn(const char *executable) {
 \end{lstlisting}
 
 \subsubsection{\texttt{process\_finish}}
+
+
 \begin{lstlisting}
 /* Stop the process and the thread it runs in. Sets the return value as well */
 void process_finish(int retval) {
@@ -208,6 +192,8 @@ void process_finish(int retval) {
 \end{lstlisting}
 
 \subsubsection{\texttt{process\_join}}
+
+
 \begin{lstlisting}
 int process_join(process_id_t pid) {
   interrupt_status_t intr_status;
