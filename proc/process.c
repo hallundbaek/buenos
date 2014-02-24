@@ -227,7 +227,9 @@ process_id_t process_spawn(const char *executable) {
   process_id_t pid;
   TID_t child_tid;
   pid = process_new_id();
-
+  interrupt_status_t intr_status;
+ 
+  intr_status = _interrupt_disable();
   spinlock_acquire(&process_lock);
   process_id_t parent_process = process_get_current_process();
   process_table[pid].state = PROC_READY;
@@ -238,16 +240,20 @@ process_id_t process_spawn(const char *executable) {
   if (pid == 0) {
     process_table[pid].state = PROC_RUNNING;
     spinlock_release(&process_lock);
+    _interrupt_set_state(intr_status);
     return pid;
   }
   child_tid = thread_create((void (*)(uint32_t))process_start,(uint32_t) pid );
   if (child_tid < 0){
     process_table[pid].state = PROC_FREE;
+    spinlock_release(&process_lock);
+    _interrupt_set_state(intr_status);
     return -1;
   }
   process_table[parent_process].children += 1;
   process_table[pid].state = PROC_RUNNING;
   spinlock_release(&process_lock);
+  _interrupt_set_state(intr_status);
   thread_run(child_tid);
   return pid;
 }
@@ -282,8 +288,10 @@ int process_join(process_id_t pid) {
   if (process_get_current_process() != process_table[pid].parentid) return -1;
   while (process_table[pid].state != PROC_ZOMBIE) {
     sleepq_add(&(process_table[pid]));
+    kprintf("%d\n", pid);
     spinlock_release(&process_lock);
     thread_switch();
+    kprintf("%d--\n", pid);
     spinlock_acquire(&process_lock);
   }
 
