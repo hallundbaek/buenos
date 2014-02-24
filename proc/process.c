@@ -198,9 +198,7 @@ process_id_t process_new_id() {
   spinlock_acquire(&process_lock);
   for (pid = 0; pid < CONFIG_MAX_PROCESSES; pid ++) {
     process = process_table[pid];
-    if (process.state == PROC_FREE || (process.state == PROC_DYING && 
-       (process.parentid < 0 || ( process_table[process.parentid].state == PROC_DYING &&
-        process.children ==0)))){
+    if (process.state == PROC_FREE) {
       process.parentid = -1;
       process.children = 0;
       process.state = PROC_NOTFREE;
@@ -262,7 +260,7 @@ void process_finish(int retval) {
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_lock);
   process_id_t current_process = process_get_current_process();
-  process_table[current_process].state = PROC_DYING;
+  process_table[current_process].state = PROC_ZOMBIE;
   process_table[current_process].retval = retval;
   sleepq_wake_all(&(process_table[current_process]));
   spinlock_release(&process_lock);
@@ -282,7 +280,7 @@ int process_join(process_id_t pid) {
   spinlock_acquire(&process_lock);
 
   if (process_get_current_process() != process_table[pid].parentid) return -1;
-  while (process_table[pid].state != PROC_DYING) {
+  while (process_table[pid].state != PROC_ZOMBIE) {
     sleepq_add(&(process_table[pid]));
     spinlock_release(&process_lock);
     thread_switch();
@@ -290,6 +288,7 @@ int process_join(process_id_t pid) {
   }
 
   retval = process_table[pid].retval;
+  process_table[pid].state = PROC_FREE;
   spinlock_release(&process_lock);
   _interrupt_set_state(intr_status);
 
