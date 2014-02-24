@@ -247,6 +247,7 @@ process_id_t process_spawn(const char *executable) {
   process_table[parent_process].children += 1;
   process_table[pid].state = PROC_RUNNING;
   spinlock_release(&process_lock);
+  thread_run(child_tid);
   return pid;
 }
 
