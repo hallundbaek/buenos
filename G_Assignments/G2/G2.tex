@@ -1,0 +1,283 @@
+\documentclass[a4paper,12pt]{article}
+
+% Standard configuration
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{upquote}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\usepackage[margin=1.3in]{geometry}
+\usepackage[numbers]{natbib}
+
+% Listings configuration
+\usepackage{color}
+\definecolor{listinggray}{gray}{0.9}
+\usepackage{multirow,bigdelim}
+\usepackage{listings}
+\lstset{
+	language=,
+	literate=
+		{æ}{{\ae}}1
+		{ø}{{\o}}1
+		{å}{{\aa}}1
+		{Æ}{{\AE}}1
+		{Ø}{{\O}}1
+		{Å}{{\AA}}1,
+	backgroundcolor=\color{listinggray},
+	tabsize=3,
+	rulecolor=,
+	basicstyle=\scriptsize,
+	upquote=true,
+	aboveskip={1.5\baselineskip},
+	columns=fixed,
+	showstringspaces=false,
+	extendedchars=true,
+	breaklines=true,
+	prebreak =\raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+	frame=single,
+	showtabs=false,
+	showspaces=false,
+	showstringspaces=false,
+	identifierstyle=\ttfamily,
+	keywordstyle=\color[rgb]{0,0,1},
+	commentstyle=\color[rgb]{0.133,0.545,0.133},
+	stringstyle=\color[rgb]{0.627,0.126,0.941},
+}
+%captions on listings
+\usepackage[center,font=small,labelfont=bf,textfont=it]{caption}
+
+% Header configuration
+\usepackage{fancyhdr}
+\lhead[]{} %clear standard settings
+\chead[]{} %clear standard settings
+\rhead[]{} %\rightmark} %current section
+\lfoot[]{} %clear standard settings
+\cfoot[]{\thepage} %current page number 
+\rfoot[]{} %clear standard settings
+
+\title{OSM\\G assignment 2}
+\author{Tobias Hallundbæk Petersen (xtv657)\\Ola Rønning (vdl761)\\Nikolaj Høyer (ctl533)}
+\date{February 24, 2014}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+\section{Types and Functions for Userland Processes in Buenos}
+\subsection{Define a data structure to represent a user process}
+
+We start by defining the data structure needed for representing user processes. This is done in \texttt{syscall.h}. First we define a process state as consisting of a number of different states, then we define our process control block as using this process state, along with a process id (an integer), a parent id, a name, a return value and an integer representing the number of child processes.
+\begin{lstlisting}
+#define CONFIG_MAX_NAME 128
+typedef enum {
+  PROC_FREE,
+  PROC_RUNNING,
+  PROC_READY,
+  PROC_SLEEPING,
+  PROC_ZOMBIE,
+  PROC_NONREADY,
+  PROC_DYING,
+  PROC_NOTFREE
+} process_state_t;
+
+typedef struct {
+  process_state_t state;
+  process_id_t id;
+  process_id_t parentid;
+  char name[CONFIG_MAX_NAME];
+  int retval;
+  int children;
+} process_control_block_t;
+\end{lstlisting}
+
+\subsection{Implement a library of helper functions}
+
+\begin{lstlisting}
+void process_start(process_id_t pid)
+{
+    thread_table_t *my_entry;
+    pagetable_t *pagetable;
+    uint32_t phys_page;
+    context_t user_context;
+    uint32_t stack_bottom;
+    elf_info_t elf;
+    openfile_t file;
+
+    int i;
+
+    interrupt_status_t intr_status;
+    
+    my_entry = thread_get_current_thread_entry();
+    /* If the pagetable of this thread is not NULL, we are trying to
+       run a userland process for a second time in the same thread.
+       This is not possible. */
+    KERNEL_ASSERT(my_entry->pagetable == NULL);
+    
+    my_entry->process_id = pid;
+    pagetable = vm_create_pagetable(thread_get_current_thread());
+    KERNEL_ASSERT(pagetable != NULL);
+
+    intr_status = _interrupt_disable();
+    my_entry->pagetable = pagetable;
+    _interrupt_set_state(intr_status);
+    spinlock_acquire(&process_lock);
+    file = vfs_open((char *)process_table[pid].name);
+    spinlock_release(&process_lock);
+\end{lstlisting}
+
+\begin{lstlisting}
+
+process_id_t process_new_id() {
+  int pid;
+  process_control_block_t process;
+  spinlock_acquire(&process_lock);
+  for (pid = 0; pid < CONFIG_MAX_PROCESSES; pid ++) {
+    process = process_table[pid];
+    if (process.state == PROC_FREE || (process.state == PROC_DYING && 
+       (process.parentid < 0 || ( process_table[process.parentid].state == PROC_DYING &&
+        process.children ==0)))){
+      process.parentid = -1;
+      process.children = 0;
+      process.state = PROC_NOTFREE;
+      spinlock_release(&process_lock);
+      return pid;
+    }
+  }
+  spinlock_release(&process_lock);
+  return -1;
+}
+\end{lstlisting}
+
+\subsubsection{\texttt{process\_spawn}}
+\begin{lstlisting}
+process_id_t process_spawn(const char *executable) {
+  process_id_t pid;
+  TID_t child_tid;
+  pid = process_new_id();
+
+  spinlock_acquire(&process_lock);
+  process_id_t parent_process = process_get_current_process();
+  process_table[pid].state = PROC_READY;
+  process_table[pid].parentid = parent_process;
+  process_table[pid].id = pid;
+  process_table[pid].children = 0;
+  stringcopy(process_table[pid].name,executable,CONFIG_MAX_NAME);
+  if (pid == 0) {
+    process_table[pid].state = PROC_RUNNING;
+    spinlock_release(&process_lock);
+    return pid;
+  }
+  child_tid = thread_create((void (*)(uint32_t))process_start,(uint32_t) pid );
+  if (child_tid < 0){
+    process_table[pid].state = PROC_FREE;
+    return -1;
+  }
+  process_table[parent_process].children += 1;
+  process_table[pid].state = PROC_RUNNING;
+  spinlock_release(&process_lock);
+  thread_run(child_tid);
+  return pid;
+}
+\end{lstlisting}
+
+\subsubsection{\texttt{process\_finish}}
+\begin{lstlisting}
+/* Stop the process and the thread it runs in. Sets the return value as well */
+void process_finish(int retval) {
+  thread_table_t *thr;
+  interrupt_status_t intr_status;
+  
+  intr_status = _interrupt_disable();
+  spinlock_acquire(&process_lock);
+  process_id_t current_process = process_get_current_process();
+  process_table[current_process].state = PROC_DYING;
+  process_table[current_process].retval = retval;
+  sleepq_wake_all(&(process_table[current_process]));
+  spinlock_release(&process_lock);
+  _interrupt_set_state(intr_status);
+
+  thr = thread_get_current_thread_entry();
+  vm_destroy_pagetable(thr->pagetable);
+  thr->pagetable = NULL;
+  thread_finish();
+}
+\end{lstlisting}
+
+\subsubsection{\texttt{process\_join}}
+\begin{lstlisting}
+int process_join(process_id_t pid) {
+  interrupt_status_t intr_status;
+  int retval;
+
+  intr_status = _interrupt_disable();
+  spinlock_acquire(&process_lock);
+
+  if (process_get_current_process() != process_table[pid].parentid) return -1;
+  while (process_table[pid].state != PROC_DYING) {
+    sleepq_add(&(process_table[pid]));
+    spinlock_release(&process_lock);
+    thread_switch();
+    spinlock_acquire(&process_lock);
+  }
+
+  retval = process_table[pid].retval;
+  spinlock_release(&process_lock);
+  _interrupt_set_state(intr_status);
+
+  return retval;
+} 
+\end{lstlisting}
+
+\subsubsection{\texttt{process\_init}}
+Process init simply runs through the process table, setting its state to \texttt{FREE} and initialising all other values its values to defaults as well. It also resets the spinlock, to make sure it has its default state.
+\begin{lstlisting}
+void process_init() {
+  int i;
+  spinlock_reset(&process_lock);
+  for (i=0; i<CONFIG_MAX_PROCESSES; i++) {
+    process_table[i].state        = PROC_FREE;
+    process_table[i].id           = -1;
+    process_table[i].parentid     = -1;
+    process_table[i].name[0]      = '\0'; 
+    process_table[i].retval       = -1;
+    process_table[i].children     = 0;
+  }
+}
+\end{lstlisting}
+
+\section{System Calls for User-Process Control in Buenos}
+We now modify \texttt{syscall.c} to use the functions implemented in \texttt{process.c}. We simply add functions we can call when the appropriate syscalls are invoked (see below).
+\begin{lstlisting}
+int syscall_exec(char const* filename){
+  int pid = process_spawn(filename);
+  return pid;
+}
+void syscall_exit(int retval){
+  process_finish(retval);
+}
+int syscall_join(int pid){
+  return process_join(pid);
+}
+\end{lstlisting}
+
+We now add cases to the syscalls in \texttt{syscall.c}, that loads and writes to registers, calling the functions defined above.
+\begin{lstlisting}
+switch(user_context->cpu_regs[MIPS_REGISTER_A0])
+...
+case SYSCALL_EXEC:
+    V0 = syscall_exec((char *) A1);
+    break;
+case SYSCALL_EXIT:
+    syscall_exit(A1);
+    break;
+case SYSCALL_JOIN:
+    V0 = syscall_join(A1);
+    break;
+...
+\end{lstlisting}
+
+\end{document}
