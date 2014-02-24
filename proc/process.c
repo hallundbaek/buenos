@@ -78,7 +78,6 @@ void process_start(process_id_t pid)
     openfile_t file;
 
     int i;
-
     interrupt_status_t intr_status;
     
     my_entry = thread_get_current_thread_entry();
@@ -91,12 +90,12 @@ void process_start(process_id_t pid)
     pagetable = vm_create_pagetable(thread_get_current_thread());
     KERNEL_ASSERT(pagetable != NULL);
 
-    intr_status = _interrupt_disable();
     my_entry->pagetable = pagetable;
-    _interrupt_set_state(intr_status);
+    intr_status = _interrupt_disable();
     spinlock_acquire(&process_lock);
     file = vfs_open((char *)process_table[pid].name);
     spinlock_release(&process_lock);
+    _interrupt_set_state(intr_status);
     /* Make sure the file existed and was a valid ELF file */
     KERNEL_ASSERT(file >= 0);
     KERNEL_ASSERT(elf_parse_header(&elf, file));
@@ -186,7 +185,7 @@ void process_start(process_id_t pid)
     memoryset(&user_context, 0, sizeof(user_context));
     user_context.cpu_regs[MIPS_REGISTER_SP] = USERLAND_STACK_TOP;
     user_context.pc = elf.entry_point;
-
+//    kprintf("SATAN");
     thread_goto_userland(&user_context);
 
     KERNEL_PANIC("thread_goto_userland failed.");
@@ -194,19 +193,22 @@ void process_start(process_id_t pid)
 
 process_id_t process_new_id() {
   int pid;
-  process_control_block_t process;
+  interrupt_status_t intr_status;
+ 
+  intr_status = _interrupt_disable();
   spinlock_acquire(&process_lock);
   for (pid = 0; pid < CONFIG_MAX_PROCESSES; pid ++) {
-    process = process_table[pid];
-    if (process.state == PROC_FREE) {
-      process.parentid = -1;
-      process.children = 0;
-      process.state = PROC_NOTFREE;
+    if (process_table[pid].state == PROC_FREE) {
+      process_table[pid].parentid = -1;
+      process_table[pid].children = 0;
+      process_table[pid].state = PROC_NOTFREE;
       spinlock_release(&process_lock);
+      _interrupt_set_state(intr_status);
       return pid;
     }
   }
   spinlock_release(&process_lock);
+  _interrupt_set_state(intr_status);
   return -1;
 }
 
@@ -228,7 +230,6 @@ process_id_t process_spawn(const char *executable) {
   TID_t child_tid;
   pid = process_new_id();
   interrupt_status_t intr_status;
- 
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_lock);
   process_id_t parent_process = process_get_current_process();
@@ -262,7 +263,7 @@ process_id_t process_spawn(const char *executable) {
 void process_finish(int retval) {
   thread_table_t *thr;
   interrupt_status_t intr_status;
-  
+ 
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_lock);
   process_id_t current_process = process_get_current_process();
@@ -284,14 +285,15 @@ int process_join(process_id_t pid) {
 
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_lock);
-
-  if (process_get_current_process() != process_table[pid].parentid) return -1;
+  if (process_get_current_process() != process_table[pid].parentid) {
+    spinlock_release(&process_lock);
+    _interrupt_set_state(intr_status);
+    return -1;
+  }
   while (process_table[pid].state != PROC_ZOMBIE) {
     sleepq_add(&(process_table[pid]));
-    kprintf("%d\n", pid);
     spinlock_release(&process_lock);
     thread_switch();
-    kprintf("%d--\n", pid);
     spinlock_acquire(&process_lock);
   }
 
