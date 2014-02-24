@@ -141,6 +141,8 @@ process_id_t process_spawn(const char *executable) {
   TID_t child_tid;
   pid = process_new_id();
 
+  interrupt_status_t intr_status;
+  intr_status = _interrupt_disable();
   spinlock_acquire(&process_lock);
   process_id_t parent_process = process_get_current_process();
   process_table[pid].state = PROC_READY;
@@ -151,16 +153,20 @@ process_id_t process_spawn(const char *executable) {
   if (pid == 0) {
     process_table[pid].state = PROC_RUNNING;
     spinlock_release(&process_lock);
+    _interrupt_set_state(intr_status);
     return pid;
   }
   child_tid = thread_create((void (*)(uint32_t))process_start,(uint32_t) pid );
   if (child_tid < 0){
     process_table[pid].state = PROC_FREE;
+    spinlock_release(&process_lock);
+    _interrupt_set_state(intr_status);
     return -1;
   }
   process_table[parent_process].children += 1;
   process_table[pid].state = PROC_RUNNING;
   spinlock_release(&process_lock);
+  _interrupt_set_state(intr_status);
   thread_run(child_tid);
   return pid;
 }
@@ -270,8 +276,33 @@ case SYSCALL_JOIN:
 \end{lstlisting}
 
 \section{Testing}
-We test bla and abl
+Apart from the included \texttt{exec} test, we have made another test-file, \texttt{multiexec}, which tests execution of multiple programs simultaneously, in this case two instances of the hello world program, \texttt{hw}. The test program is shown below:
+
 \begin{lstlisting}
-Blabla tests
+/*
+ * Userland exec test
+ */
+
+#include "tests/lib.h"
+
+static const char prog0[] = "[buenos]tests/hw"; /* The program to start. */
+
+int main(void)
+{
+  uint32_t child0, child1;
+  int ret;
+  printf("Starting program %s\n", prog0);
+  child0 = syscall_exec(prog0);
+  printf("Starting program %s\n", prog0);
+  child1 = syscall_exec(prog0);
+  printf("Now joining child %d\n", child0);
+  ret = (char)syscall_join(child0); 
+  printf("Now joining child %d\n", child1);
+  ret = (char)syscall_join(child1);
+  printf("Child joined with status: %d\n", ret);
+  syscall_halt();
+  return 0;
+}
 \end{lstlisting}
+
 \end{document}
