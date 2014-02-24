@@ -80,6 +80,7 @@ void process_start(process_id_t pid)
     int i;
 
     interrupt_status_t intr_status;
+    kprintf( process_table[pid].name );
 
     my_entry = thread_get_current_thread_entry();
     kprintf("%d\n", thread_get_current_thread());
@@ -109,7 +110,7 @@ void process_start(process_id_t pid)
        handling code, all these pages must fit into TLB. */
     KERNEL_ASSERT(elf.ro_pages + elf.rw_pages + CONFIG_USERLAND_STACK_SIZE
 		  <= _tlb_get_maxindex() + 1);
-    kprintf( "a\n" );
+
     /* Allocate and map stack */
     for(i = 0; i < CONFIG_USERLAND_STACK_SIZE; i++) {
         phys_page = pagepool_get_phys_page();
@@ -117,7 +118,6 @@ void process_start(process_id_t pid)
         vm_map(my_entry->pagetable, phys_page, 
                (USERLAND_STACK_TOP & PAGE_SIZE_MASK) - i*PAGE_SIZE, 1);
     }
-    kprintf( "b\n" );
 
     /* Allocate and map pages for the segments. We assume that
        segments begin at page boundary. (The linker script in tests
@@ -128,7 +128,6 @@ void process_start(process_id_t pid)
         vm_map(my_entry->pagetable, phys_page, 
                elf.ro_vaddr + i*PAGE_SIZE, 1);
     }
-    kprintf( "c\n" );
 
     for(i = 0; i < (int)elf.rw_pages; i++) {
         phys_page = pagepool_get_phys_page();
@@ -136,7 +135,6 @@ void process_start(process_id_t pid)
         vm_map(my_entry->pagetable, phys_page, 
                elf.rw_vaddr + i*PAGE_SIZE, 1);
     }
-    kprintf( "d\n" );
 
     /* Put the mapped pages into TLB. Here we again assume that the
        pages fit into the TLB. After writing proper TLB exception
@@ -145,7 +143,6 @@ void process_start(process_id_t pid)
     tlb_fill(my_entry->pagetable);
     _interrupt_set_state(intr_status);
     
-    kprintf( "e\n" );
     /* Now we may use the virtual addresses of the segments. */
 
     /* Zero the pages. */
@@ -246,7 +243,7 @@ process_id_t process_spawn(const char *executable) {
     spinlock_release(&process_lock);
     return pid;
   }
-  child_tid = thread_create((void (*)(uint32_t))process_start,(uint32_t) process_table[pid].name );
+  child_tid = thread_create((void (*)(uint32_t))process_start,(uint32_t) pid );
   if (child_tid < 0){
     process_table[pid].state = PROC_FREE;
     return -1;

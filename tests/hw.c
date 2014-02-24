@@ -23,7 +23,7 @@ int main(void)
     printf("And hello to you, %s!\n", name);
     free(name);
   }
-  puts("Now I shall exit!\n");
+  puts("I shall exit!\n");
   syscall_exit(2);
   return 0;
 }
