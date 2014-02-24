@@ -35,6 +35,7 @@
  */
 #include "kernel/cswitch.h"
 #include "proc/syscall.h"
+#include "proc/process.h"
 #include "kernel/halt.h"
 #include "kernel/panic.h"
 #include "lib/libc.h"
@@ -63,6 +64,19 @@ int syscall_read(uint32_t fd, char *s, int len)
     return 1;
 }
 
+int syscall_exec(char const* filename){
+  int pid = process_spawn(filename);
+  process_start(pid);
+  return pid;
+}
+
+void syscall_exit(int retval){
+  process_finish(retval);
+}
+
+int syscall_join(int pid){
+  return process_join(pid);
+}
 #define V0 user_context->cpu_regs[MIPS_REGISTER_V0]
 #define A0 user_context->cpu_regs[MIPS_REGISTER_A0]
 #define A1 user_context->cpu_regs[MIPS_REGISTER_A1]
@@ -98,6 +112,15 @@ void syscall_handle(context_t *user_context)
     case SYSCALL_READ:
         user_context->cpu_regs[MIPS_REGISTER_V0] =
             syscall_read(A1, (char *)A2, A3);
+        break;
+    case SYSCALL_EXEC:
+        V0 = syscall_exec((char *) A1);
+        break;
+    case SYSCALL_EXIT:
+        syscall_exit(A1);
+        break;
+    case SYSCALL_JOIN:
+        V0 = syscall_join(A1);
         break;
     default:
         KERNEL_PANIC("Unhandled system call\n");

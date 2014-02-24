@@ -54,7 +54,9 @@ typedef enum {
   PROC_READY,
   PROC_SLEEPING,
   PROC_ZOMBIE,
-  PROC_NONREADY
+  PROC_NONREADY,
+  PROC_DYING,
+  PROC_NOTFREE
 } process_state_t;
 
 typedef struct {
@@ -63,6 +65,7 @@ typedef struct {
   process_id_t parentid;
   char name[CONFIG_MAX_NAME];
   int retval;
+  int children;
 } process_control_block_t;
 
 /* Initialize the process table.  This must be called during kernel

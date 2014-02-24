@@ -46,7 +46,7 @@
 #include "vm/pagepool.h"
 
 #include "kernel/spinlock.h"
-
+#include "kernel/sleepq.h"
 /** @name Process startup
  *
  * This module contains facilities for managing userland process.
@@ -193,6 +193,27 @@ void process_start(process_id_t pid)
 
     KERNEL_PANIC("thread_goto_userland failed.");
 }
+
+process_id_t process_new_id() {
+  int pid;
+  process_control_block_t process;
+  spinlock_acquire(&process_lock);
+  for (pid = 0; pid < CONFIG_MAX_PROCESSES; pid ++) {
+    process = process_table[pid];
+    if (process.state == PROC_FREE || (process.state == PROC_DYING && 
+       (process.parentid < 0 || ( process_table[process.parentid].state == PROC_DYING &&
+        process.children ==0)))){
+      process.parentid = -1;
+      process.children = 0;
+      process.state = PROC_NOTFREE;
+      spinlock_release(&process_lock);
+      return pid;
+    }
+  }
+  spinlock_release(&process_lock);
+  return -1;
+}
+
 void process_init() {
   int i;
   spinlock_reset(&process_lock);
@@ -202,45 +223,74 @@ void process_init() {
     process_table[i].parentid     = -1;
     process_table[i].name[0]      = '\0'; 
     process_table[i].retval       = -1;
+    process_table[i].children     = 0;
   }
 }
 
 process_id_t process_spawn(const char *executable) {
-  int pid;
+  process_id_t pid;
+  TID_t child_tid;
+  pid = process_new_id();
+
   spinlock_acquire(&process_lock);
-  for (pid = 0; pid < 64; pid++) {
-    if (process_table[pid].state == PROC_FREE) {
-      break;
-    }
-  }
+  process_id_t parent_process = process_get_current_process();
   process_table[pid].state = PROC_READY;
-  process_table[pid].parentid = -1;
+  process_table[pid].parentid = parent_process;
   process_table[pid].id = pid;
+  process_table[pid].children = 0;
   stringcopy(process_table[pid].name,executable,CONFIG_MAX_NAME);
-  process_start(pid);
+  child_tid = thread_create((void (*)(uint32_t))process_start,(uint32_t) process_table[pid].name );
+  if (child_tid < 0){
+    process_table[pid].state = PROC_FREE;
+    return -1;
+  }
+  process_table[parent_process].children += 1;
+  process_table[pid].state = PROC_RUNNING;
   spinlock_release(&process_lock);
   return pid;
 }
 
 /* Stop the process and the thread it runs in. Sets the return value as well */
 void process_finish(int retval) {
+  thread_table_t thr;
+  interrupt_status_t intr_status;
+  
+  intr_status = _interrupt_disable();
   spinlock_acquire(&process_lock);
   process_id_t current_process = process_get_current_process();
-  thread_table_t thr;
+  process_table[current_process].state = PROC_DYING;
+  process_table[current_process].retval = retval;
+  sleepq_wake_all(&process_table[current_process]);
+  spinlock_release(&process_lock);
+  _interrupt_set_state(intr_status);
+
   thr = *thread_get_current_thread_entry();
   vm_destroy_pagetable(thr.pagetable);
   thr.pagetable = NULL;
   thread_finish();
-  process_table[current_process].state = PROC_FREE;
-  process_table[current_process].retval = retval;
-  spinlock_release(&process_lock);
 }
 
 int process_join(process_id_t pid) {
-  _interrupt_set_state(_interrupt_disable());
-  _interrupt_set_state(_interrupt_enable());
-  pid = pid;
-  return 0;
+  interrupt_status_t intr_status;
+  process_control_block_t child_process;  
+  int retval;
+
+  intr_status = _interrupt_disable();
+  spinlock_acquire(&process_lock);
+  child_process = process_table[pid];
+
+  while (child_process.state != PROC_DYING) {
+    sleepq_add(&child_process);
+    spinlock_release(&process_lock);
+    thread_switch();
+    spinlock_acquire(&process_lock);
+  }
+
+  retval = child_process.retval;
+  spinlock_release(&process_lock);
+  _interrupt_set_state(intr_status);
+
+  return retval;
 } 
 
 process_id_t process_get_current_process(void)
