@@ -91,11 +91,7 @@ void process_start(process_id_t pid)
     KERNEL_ASSERT(pagetable != NULL);
 
     my_entry->pagetable = pagetable;
-    intr_status = _interrupt_disable();
-    spinlock_acquire(&process_lock);
     file = vfs_open((char *)process_table[pid].name);
-    spinlock_release(&process_lock);
-    _interrupt_set_state(intr_status);
     /* Make sure the file existed and was a valid ELF file */
     KERNEL_ASSERT(file >= 0);
     KERNEL_ASSERT(elf_parse_header(&elf, file));
@@ -140,6 +136,7 @@ void process_start(process_id_t pid)
     intr_status = _interrupt_disable();
     tlb_fill(my_entry->pagetable);
     _interrupt_set_state(intr_status);
+    kprintf(" sutter ");
     
     /* Now we may use the virtual addresses of the segments. */
 
@@ -185,7 +182,7 @@ void process_start(process_id_t pid)
     memoryset(&user_context, 0, sizeof(user_context));
     user_context.cpu_regs[MIPS_REGISTER_SP] = USERLAND_STACK_TOP;
     user_context.pc = elf.entry_point;
-//    kprintf("SATAN");
+
     thread_goto_userland(&user_context);
 
     KERNEL_PANIC("thread_goto_userland failed.");
