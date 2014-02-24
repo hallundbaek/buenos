@@ -136,7 +136,6 @@ void process_start(process_id_t pid)
     intr_status = _interrupt_disable();
     tlb_fill(my_entry->pagetable);
     _interrupt_set_state(intr_status);
-    kprintf(" sutter ");
     
     /* Now we may use the virtual addresses of the segments. */
 

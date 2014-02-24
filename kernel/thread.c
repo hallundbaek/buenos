@@ -127,7 +127,6 @@ TID_t thread_create(void (*func)(uint32_t), uint32_t arg)
     interrupt_status_t intr_status;
       
     intr_status = _interrupt_disable();
-
     spinlock_acquire(&thread_table_slock);
     
     /* Find the first free thread table entry starting from 'next_tid' */
