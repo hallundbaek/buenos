@@ -48,7 +48,7 @@ int syscall_write(uint32_t fd, char *s, int len)
     fd = fd;
     /* Not a G1 solution */
     if (len > 0) {
-        kprintf("%c", *s);
+        kprintf( "%c", *s );
         return 1;
     } else {
         return 0;
@@ -66,7 +66,6 @@ int syscall_read(uint32_t fd, char *s, int len)
 
 int syscall_exec(char const* filename){
   int pid = process_spawn(filename);
-  process_start(pid);
   return pid;
 }
 

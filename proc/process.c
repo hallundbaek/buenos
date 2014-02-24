@@ -69,9 +69,6 @@ static spinlock_t process_lock;
  */
 void process_start(process_id_t pid)
 {
-    spinlock_acquire(&process_lock);
-    const char* executable = process_table[(int) pid].name;
-    spinlock_release(&process_lock);
     thread_table_t *my_entry;
     pagetable_t *pagetable;
     uint32_t phys_page;
@@ -85,7 +82,7 @@ void process_start(process_id_t pid)
     interrupt_status_t intr_status;
 
     my_entry = thread_get_current_thread_entry();
-
+    kprintf("%d\n", thread_get_current_thread());
     /* If the pagetable of this thread is not NULL, we are trying to
        run a userland process for a second time in the same thread.
        This is not possible. */
@@ -97,8 +94,9 @@ void process_start(process_id_t pid)
     intr_status = _interrupt_disable();
     my_entry->pagetable = pagetable;
     _interrupt_set_state(intr_status);
-
-    file = vfs_open((char *)executable);
+    spinlock_acquire(&process_lock);
+    file = vfs_open((char *)process_table[pid].name);
+    spinlock_release(&process_lock);
     /* Make sure the file existed and was a valid ELF file */
     KERNEL_ASSERT(file >= 0);
     KERNEL_ASSERT(elf_parse_header(&elf, file));
@@ -111,7 +109,7 @@ void process_start(process_id_t pid)
        handling code, all these pages must fit into TLB. */
     KERNEL_ASSERT(elf.ro_pages + elf.rw_pages + CONFIG_USERLAND_STACK_SIZE
 		  <= _tlb_get_maxindex() + 1);
-
+    kprintf( "a\n" );
     /* Allocate and map stack */
     for(i = 0; i < CONFIG_USERLAND_STACK_SIZE; i++) {
         phys_page = pagepool_get_phys_page();
@@ -119,6 +117,7 @@ void process_start(process_id_t pid)
         vm_map(my_entry->pagetable, phys_page, 
                (USERLAND_STACK_TOP & PAGE_SIZE_MASK) - i*PAGE_SIZE, 1);
     }
+    kprintf( "b\n" );
 
     /* Allocate and map pages for the segments. We assume that
        segments begin at page boundary. (The linker script in tests
@@ -129,6 +128,7 @@ void process_start(process_id_t pid)
         vm_map(my_entry->pagetable, phys_page, 
                elf.ro_vaddr + i*PAGE_SIZE, 1);
     }
+    kprintf( "c\n" );
 
     for(i = 0; i < (int)elf.rw_pages; i++) {
         phys_page = pagepool_get_phys_page();
@@ -136,6 +136,7 @@ void process_start(process_id_t pid)
         vm_map(my_entry->pagetable, phys_page, 
                elf.rw_vaddr + i*PAGE_SIZE, 1);
     }
+    kprintf( "d\n" );
 
     /* Put the mapped pages into TLB. Here we again assume that the
        pages fit into the TLB. After writing proper TLB exception
@@ -144,6 +145,7 @@ void process_start(process_id_t pid)
     tlb_fill(my_entry->pagetable);
     _interrupt_set_state(intr_status);
     
+    kprintf( "e\n" );
     /* Now we may use the virtual addresses of the segments. */
 
     /* Zero the pages. */
@@ -239,6 +241,11 @@ process_id_t process_spawn(const char *executable) {
   process_table[pid].id = pid;
   process_table[pid].children = 0;
   stringcopy(process_table[pid].name,executable,CONFIG_MAX_NAME);
+  if (pid == 0) {
+    process_table[pid].state = PROC_RUNNING;
+    spinlock_release(&process_lock);
+    return pid;
+  }
   child_tid = thread_create((void (*)(uint32_t))process_start,(uint32_t) process_table[pid].name );
   if (child_tid < 0){
     process_table[pid].state = PROC_FREE;
@@ -253,7 +260,7 @@ process_id_t process_spawn(const char *executable) {
 
 /* Stop the process and the thread it runs in. Sets the return value as well */
 void process_finish(int retval) {
-  thread_table_t thr;
+  thread_table_t *thr;
   interrupt_status_t intr_status;
   
   intr_status = _interrupt_disable();
@@ -265,9 +272,9 @@ void process_finish(int retval) {
   spinlock_release(&process_lock);
   _interrupt_set_state(intr_status);
 
-  thr = *thread_get_current_thread_entry();
-  vm_destroy_pagetable(thr.pagetable);
-  thr.pagetable = NULL;
+  thr = thread_get_current_thread_entry();
+  vm_destroy_pagetable(thr->pagetable);
+  thr->pagetable = NULL;
   thread_finish();
 }
 
@@ -279,6 +286,8 @@ int process_join(process_id_t pid) {
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_lock);
   child_process = process_table[pid];
+
+  if (process_get_current_process() != child_process.parentid) return -1;
 
   while (child_process.state != PROC_DYING) {
     sleepq_add(&child_process);
@@ -294,8 +303,7 @@ int process_join(process_id_t pid) {
   return retval;
 } 
 
-process_id_t process_get_current_process(void)
-{
+process_id_t process_get_current_process(void) {
     return thread_get_current_thread_entry()->process_id;
 }
 

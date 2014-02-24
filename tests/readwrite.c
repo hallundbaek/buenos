@@ -3,10 +3,10 @@
 int main(void)
 {
   char buffer[1];
-  char newline[1] = {'\n'};
-  char larger[12] = {'k',' ','i','s',' ','l','a','r','g','e','r','\n'};
-  char smaller[13] = {'k',' ','i','s',' ','s','m','a','l','l','e','r','\n'};
-  char correct[8] = {'c','o','r','r','e','c','t','\n'};
+  char newline[1] = {'\n','\0'};
+  char larger[12] = {'k',' ','i','s',' ','l','a','r','g','e','r','\n','\0'};
+  char smaller[13] = {'k',' ','i','s',' ','s','m','a','l','l','e','r','\n','\0'};
+  char correct[8] = {'c','o','r','r','e','c','t','\n','\0'};
   int l, len;
   int k = 32;
   while (1) {
@@ -18,13 +18,13 @@ int main(void)
     syscall_write(1,newline,1);
     l += (buffer[0] - '0');
     if (l < k) {
-      len = 12;
+      len = 13;
       syscall_write(1, larger, len);
     } else if (l > k) { 
-      len = 13;
+      len = 14;
       syscall_write(1, smaller, len);
     } else {
-      len = 8;
+      len = 9;
       syscall_write(1, correct, len);
       break;
     }
