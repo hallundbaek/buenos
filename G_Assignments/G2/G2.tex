@@ -99,12 +99,13 @@ We start by modifying the existing \texttt{process\_start} function, making it t
 \begin{lstlisting}
 void process_start(process_id_t pid)
 {
-    ...
-    my_entry->process_id = pid;
-    ...
+	...
+    my_entry->pagetable = pagetable;
+    intr_status = _interrupt_disable();
     spinlock_acquire(&process_lock);
     file = vfs_open((char *)process_table[pid].name);
     spinlock_release(&process_lock);
+    _interrupt_set_state(intr_status);
     ...
 \end{lstlisting}
 
@@ -112,19 +113,23 @@ We also need a helper function, which creates a new process id. Such a function 
 \begin{lstlisting}
 process_id_t process_new_id() {
   int pid;
-  process_control_block_t process;
+  interrupt_status_t intr_status;
+  intr_status = _interrupt_disable();
+  
   spinlock_acquire(&process_lock);
   for (pid = 0; pid < CONFIG_MAX_PROCESSES; pid ++) {
     process = process_table[pid];
-    if (process.state == PROC_FREE){
-      process.parentid = -1;
-      process.children = 0;
-      process.state = PROC_NOTFREE;
+    if (process_table[pid].state == PROC_FREE){
+      process_table[pid].parentid = -1;
+      process_table[pid].children = 0;
+      process_table[pid].state = PROC_NOTFREE;
       spinlock_release(&process_lock);
+      _interrupt_set_state(intr_status);
       return pid;
     }
   }
   spinlock_release(&process_lock);
+  _interrupt_set_state(intr_status);
   return -1;
 }
 \end{lstlisting}
@@ -211,7 +216,12 @@ int process_join(process_id_t pid) {
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_lock);
 
-  if (process_get_current_process() != process_table[pid].parentid) return -1;
+  if (process_get_current_process() != process_table[pid].parentid) {
+    spinlock_release(&process_lock);
+    _interrupt_set_state(intr_status);
+    return -1;
+  }
+
   while (process_table[pid].state != PROC_DYING) {
     sleepq_add(&(process_table[pid]));
     spinlock_release(&process_lock);
