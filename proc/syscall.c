@@ -35,52 +35,43 @@
  */
 #include "kernel/cswitch.h"
 #include "proc/syscall.h"
-#include "proc/process.h"
 #include "kernel/halt.h"
 #include "kernel/panic.h"
 #include "lib/libc.h"
 #include "kernel/assert.h"
+#include "proc/process.h"
 #include "drivers/device.h"
 #include "drivers/gcd.h"
+#include "fs/vfs.h"
+#include "kernel/thread.h"
 
 int syscall_write(uint32_t fd, char *s, int len)
 {
-    fd = fd;
-    /* Not a G1 solution */
-    if (len > 0) {
-        kprintf( "%c", *s );
-        return 1;
-    } else {
-        return 0;
-    }
+  gcd_t *gcd;
+  device_t *dev;
+  if (fd == FILEHANDLE_STDOUT || fd == FILEHANDLE_STDERR) {
+    dev = device_get(YAMS_TYPECODE_TTY, 0);
+    gcd = (gcd_t *)dev->generic_device;
+    return gcd->write(gcd, s, len);
+  } else {
+    KERNEL_PANIC("Write syscall not finished yet.");
+    return 0;
+  }
 }
 
 int syscall_read(uint32_t fd, char *s, int len)
 {
-    fd = fd;
-    len = len;
-    /* Not a G1 solution */
-    ((gcd_t *)(device_get(YAMS_TYPECODE_TTY, 0)->generic_device))->read((gcd_t *)(device_get(YAMS_TYPECODE_TTY, 0)->generic_device), s, 1);
-    return 1;
+  gcd_t *gcd;
+  device_t *dev;
+  if (fd == FILEHANDLE_STDIN) {
+    dev = device_get(YAMS_TYPECODE_TTY, 0);
+    gcd = (gcd_t *)dev->generic_device;
+    return gcd->read(gcd, s, len);
+  } else {
+    KERNEL_PANIC("Read syscall not finished yet.");
+    return 0;
+  }
 }
-
-int syscall_exec(char const* filename){
-  int pid = process_spawn(filename);
-  return pid;
-}
-
-void syscall_exit(int retval){
-  process_finish(retval);
-}
-
-int syscall_join(int pid){
-  return process_join(pid);
-}
-#define V0 user_context->cpu_regs[MIPS_REGISTER_V0]
-#define A0 user_context->cpu_regs[MIPS_REGISTER_A0]
-#define A1 user_context->cpu_regs[MIPS_REGISTER_A1]
-#define A2 user_context->cpu_regs[MIPS_REGISTER_A2]
-#define A3 user_context->cpu_regs[MIPS_REGISTER_A3]
 
 /**
  * Handle system calls. Interrupts are enabled when this function is
@@ -91,40 +82,47 @@ int syscall_join(int pid){
  */
 void syscall_handle(context_t *user_context)
 {
-    /* When a syscall is executed in userland, register a0 contains
-     * the number of the syscall. Registers a1, a2 and a3 contain the
-     * arguments of the syscall. The userland code expects that after
-     * returning from the syscall instruction the return value of the
-     * syscall is found in register v0. Before entering this function
-     * the userland context has been saved to user_context and after
-     * returning from this function the userland context will be
-     * restored from user_context.
-     */
-    switch(user_context->cpu_regs[MIPS_REGISTER_A0]) {
+  int A1 = user_context->cpu_regs[MIPS_REGISTER_A1];
+  int A2 = user_context->cpu_regs[MIPS_REGISTER_A2];
+  int A3 = user_context->cpu_regs[MIPS_REGISTER_A3];
+
+#define V0 (user_context->cpu_regs[MIPS_REGISTER_V0])
+
+  /* When a syscall is executed in userland, register a0 contains
+   * the number of the syscall. Registers a1, a2 and a3 contain the
+   * arguments of the syscall. The userland code expects that after
+   * returning from the syscall instruction the return value of the
+   * syscall is found in register v0. Before entering this function
+   * the userland context has been saved to user_context and after
+   * returning from this function the userland context will be
+   * restored from user_context.*/
+  switch(user_context->cpu_regs[MIPS_REGISTER_A0])
+    {
     case SYSCALL_HALT:
-        halt_kernel();
-        break;
-    case SYSCALL_WRITE:
-        user_context->cpu_regs[MIPS_REGISTER_V0] =
-            syscall_write(A1, (char *)A2, A3);
-        break;
-    case SYSCALL_READ:
-        user_context->cpu_regs[MIPS_REGISTER_V0] =
-            syscall_read(A1, (char *)A2, A3);
-        break;
+      halt_kernel();
+      break;
     case SYSCALL_EXEC:
-        V0 = syscall_exec((char *) A1);
-        break;
+      V0 = process_spawn((char *)A1);
+      break;
     case SYSCALL_EXIT:
-        syscall_exit(A1);
-        break;
+      process_finish(A1);
+      break;
     case SYSCALL_JOIN:
-        V0 = syscall_join(A1);
-        break;
+      V0 = process_join(A1);
+      break;
+    case SYSCALL_READ:
+      V0 = syscall_read(A1, (char *)A2, A3);
+      break;
+    case SYSCALL_WRITE:
+      V0 = syscall_write(A1, (char *)A2, A3);
+      break;
     default:
-        KERNEL_PANIC("Unhandled system call\n");
+      KERNEL_PANIC("Unhandled system call\n");
     }
 
-    /* Move to next instruction after system call */
-    user_context->pc += 4;
+  /* Move to next instruction after system call */
+  user_context->pc += 4;
+
+#undef V0
+
 }
