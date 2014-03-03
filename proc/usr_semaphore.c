@@ -4,11 +4,12 @@
 #include "kernel/kmalloc.h"
 #include "proc/usr_semaphore.h"
 #include "lib/libc.h"
+#define MAX_USR_SEMAPHORES CONFIG_MAX_SEMAPHORES / 8
 
 /* Configure a separate userland semaphore table
  * - this will never be fully populated as long as there
  * are active kernel semaphores. */
-static usr_sem_t usr_semaphore_table[CONFIG_MAX_SEMAPHORES];
+static usr_sem_t usr_semaphore_table[MAX_USR_SEMAPHORES];
 
 static spinlock_t usr_semaphore_table_slock;
 
@@ -16,11 +17,10 @@ void usr_semaphore_init(void)
 {
   int i;
   interrupt_status_t intr_status;
-
   intr_status = _interrupt_disable();
   spinlock_reset(&usr_semaphore_table_slock);
   spinlock_acquire(&usr_semaphore_table_slock);
-  for(i = 0; i < CONFIG_MAX_SEMAPHORES; i++) {
+  for(i = 0; i < MAX_USR_SEMAPHORES; i++) {
     usr_semaphore_table[i].sem = NULL;
   }
   spinlock_release(&usr_semaphore_table_slock);
@@ -39,7 +39,7 @@ usr_sem_t* syscall_sem_open(char const *name, int value)
   spinlock_acquire(&usr_semaphore_table_slock);
   // Get an existing userland semaphore
   if (value < 0) {
-    for (i = 0; i < CONFIG_MAX_SEMAPHORES; i++) {
+    for (i = 0; i < MAX_USR_SEMAPHORES; i++) {
       if(stringcmp(usr_semaphore_table[i].name, name) == 0) {
         usr_sem = &usr_semaphore_table[i];
         spinlock_release(&usr_semaphore_table_slock);
@@ -53,8 +53,8 @@ usr_sem_t* syscall_sem_open(char const *name, int value)
   }
   // Create new userland semaphore
   else {
-    int sem_id = CONFIG_MAX_SEMAPHORES;
-    for (i = 0; i < CONFIG_MAX_SEMAPHORES; i++) {
+    int sem_id = MAX_USR_SEMAPHORES;
+    for (i = 0; i < MAX_USR_SEMAPHORES; i++) {
       if(stringcmp(usr_semaphore_table[i].name, name) == 0) {
         spinlock_release(&usr_semaphore_table_slock);
         _interrupt_set_state(intr_status);
@@ -99,7 +99,7 @@ int syscall_sem_destroy(usr_sem_t* handle)
 
   /* Look through the user semaphore table for
    * a usr_sem_t address matching the handle */
-  for(i = 0; i < CONFIG_MAX_SEMAPHORES; i++) {
+  for(i = 0; i < MAX_USR_SEMAPHORES; i++) {
     if(&usr_semaphore_table[i] == handle) {
       semaphore_destroy(handle->sem);
       usr_semaphore_table[i].sem = NULL;
