@@ -71,5 +71,54 @@
 \section{Task 1: A Thread-Safe Stack}
 
 \section{Task 2: Userland Semaphores for Buenos}
+We have added the following cases to \texttt{proc/syscall.c}:
+
+\lstinputlisting[language=C, firstline=120, lastline=131]{../../proc/syscall.c}
+
+The function calls stated above resides in their own file, an addition to \texttt{proc}, namely \texttt{proc/usr\_semaphore.c} and \texttt{proc/usr\_semaphore.h}. Hence, in \texttt{syscall.c} we add the line \texttt{\#include "proc/usr\_semaphore.h"}. We have also added a new syscall to \texttt{proc/syscall.h}: \texttt{\#define SYSCALL\_SEM\_DESTROY 0x303} to cover the case of this specific syscall.
+
+In \texttt{syscall.h} we define the new user land semaphore structure, which contains of a pointer to a kernel semaphore and a name of the userland semaphore, along with function definitions.
+
+\lstinputlisting[language=C]{../../proc/usr_semaphore.h}
+
+The real functionality is implemented in \texttt{proc/syscall.c}. 
+
+In addition to the functions specified in the assignment text, we have added an init function and added the following lines to \texttt{init/main.c}:
+
+\lstinputlisting[language=C, firstline=213, lastline=214]{../../init/main.c}
+
+The init function simply runs through our userland semaphore table, which we have defined in \texttt{proc/usr\_semaphore.c}, setting all its user semaphores to \texttt{NULL}. This table has a size that is a constant fraction of the kernel semaphores, we have set it to \texttt{CONFIG\_MAX\_SEMAPHORES / 8}. Since the userland semaphores are actually based on kernel semaphores (creating a new userland semaphore will actually create a kernel semaphore), we could get in a situation where the user could fully populate the semaphore table, making the kernel routines unable to create any semaphores at all.
+
+The open function takes care of either retrieving an existing user semaphore (value $< 0$) or creating a new user semaphore (value $>= 0$). Since we're accessing the user semaphore table, we need to disable interrupts and set a spinlock. Most of the functionality revolves around accessing the user semaphore table, comparing the \texttt{name} input variable to the names stored in the \texttt{usr\_sem\_t} structures stored in the semaphore table. The inline comments should describe what happens, and when.
+
+The \texttt{sem\_p} and \texttt{sem\_v} function simply calls the underlying kernel semaphore functionality - since this in itself provides interruption disabling and spinklocks, we don't need to apply that here.
+
+The destroy function simply runs through the user semaphore table, invalidating all the semaphores and freeing the user semaphore table slots.
+
+The code for \texttt{proc/usr\_semaphores.c} is shown below:
+
+\lstinputlisting[language=C]{../../proc/usr_semaphore.c}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 \end{document}
