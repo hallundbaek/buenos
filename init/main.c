@@ -54,6 +54,7 @@
 #include "lib/debug.h"
 #include "lib/libc.h"
 #include "net/network.h"
+#include "proc/usr_semaphore.h"
 #include "proc/process.h"
 #include "vm/vm.h"
 
@@ -208,6 +209,9 @@ void init(void)
 
   kwrite("Initializing semaphores\n");
   semaphore_init();
+
+  kwrite("Initializing userland semaphores\n");
+  usr_semaphore_init();
 
   kwrite("Initializing device drivers\n");
   device_init();
