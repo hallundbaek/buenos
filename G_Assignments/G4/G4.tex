@@ -1,0 +1,77 @@
+\documentclass[a4paper,12pt]{article}
+
+% Standard configuration
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{upquote}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\usepackage[margin=1.3in]{geometry}
+\usepackage[numbers]{natbib}
+
+% Listings configuration
+\usepackage{color}
+\definecolor{listinggray}{gray}{0.9}
+\usepackage{multirow,bigdelim}
+\usepackage{listings}
+\lstset{
+	language=,
+	literate=
+		{æ}{{\ae}}1
+		{ø}{{\o}}1
+		{å}{{\aa}}1
+		{Æ}{{\AE}}1
+		{Ø}{{\O}}1
+		{Å}{{\AA}}1,
+	backgroundcolor=\color{listinggray},
+	tabsize=3,
+	rulecolor=,
+	basicstyle=\scriptsize,
+	upquote=true,
+	aboveskip={1.5\baselineskip},
+	columns=fixed,
+	showstringspaces=false,
+	extendedchars=true,
+	breaklines=true,
+	prebreak =\raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+	frame=single,
+	showtabs=false,
+	showspaces=false,
+	showstringspaces=false,
+	identifierstyle=\ttfamily,
+	keywordstyle=\color[rgb]{0,0,1},
+	commentstyle=\color[rgb]{0.133,0.545,0.133},
+	stringstyle=\color[rgb]{0.627,0.126,0.941},
+}
+%captions on listings
+\usepackage[center,font=small,labelfont=bf,textfont=it]{caption}
+
+% Header configuration
+\usepackage{fancyhdr}
+\lhead[]{} %clear standard settings
+\chead[]{} %clear standard settings
+\rhead[]{} %\rightmark} %current section
+\lfoot[]{} %clear standard settings
+\cfoot[]{\thepage} %current page number 
+\rfoot[]{} %clear standard settings
+
+\title{OSM\\G assignment 4}
+\author{Tobias Hallundbæk Petersen (xtv657)\\Ola Rønning (vdl761)\\Nikolaj Høyer (ctl533)}
+\date{March 10\textsuperscript{th}, 2014}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Task 1: TLB exception handling in Buenos}
+
+\section{Task 2: Dynamic allocation for user processes}
+
+\section{Task 3: Extended tests for TLB exceptions and user-space allocation}
+
+\end{document}
