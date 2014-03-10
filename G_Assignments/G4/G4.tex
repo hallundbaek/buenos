@@ -118,7 +118,7 @@ The program below, \texttt{tests/mallol.c} tests user space allocation. We test 
 \lstinputlisting{../../tests/mallol.c}
 
 We also test for a heap overflow by multiplying our page size by 17 and try to \texttt{malloc} with this amount. This should cause a heap overflow, since we exceed the amount available for the heap.
-%\lstinputlisting{../../tests/heapoverflow.c}
+\lstinputlisting{../../tests/heapoverflow.c}
 
 Note that none of these tests pass, since our implementation of \texttt{malloc} or \texttt{sys call\_memlimit} is bugged.
 
