@@ -782,15 +782,15 @@ void *malloc(unsigned int size) {
     }
     /* Else, check the next block. */
   }
-  free_block_t* free_block = (free_block_t*) syscall_memlimit(heap_ptr + size + sizeof(size_t));
+  free_block_t* free_block = (free_block_t*) syscall_memlimit(heap_ptr + size + MIN_ALLOC_SIZE);
   if ((free_size = size % 4096) != 0) {
     free_block->size = free_size;
     free_block->next = free_list;
     free_list = free_block;
   }
   free_block_t* return_block = (free_block_t*) heap_ptr;
-  return_block->size = size + sizeof(size_t);
-  return heap_ptr + sizeof(size_t);
+  return_block->size = size + MIN_ALLOC_SIZE;
+  return heap_ptr + MIN_ALLOC_SIZE;
 }
 
 /* Return the block pointed to by ptr to the free pool. */
