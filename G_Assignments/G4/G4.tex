@@ -69,12 +69,27 @@
 \newpage
 
 \section{Task 1: TLB exception handling in Buenos}
-The TLB load and store exceptions behave in almost the same way. Hence we will just show the code for load below. First, we retrieve the state of the current thread. Then we make a new entry and copy the fields from the offending thread into this new entry. We then check if the 13th most significant bit of the \texttt{badvaddr} of the offending thread is set or not and capture the result in the \texttt{is\_odd} variable - this checks if the page we wish to look up is odd or even.
+The TLB load and store exceptions behave in almost the same way. Hence we will just show the code for load below. First, we retrieve the state of the offending thread. Then we check if the 13th most significant bit of the \texttt{badvaddr} of this thread is set or not and capture the result in the \texttt{is\_odd} variable - this checks if the page we wish to look up is odd or even.
 
-We then look for a match between the newly created entry and pages in the page table 
+We then look for a match between the \texttt{badvpn2} and \texttt{asid} fields of the offending thread and pages in the page table while also checking if the dirty bit is set. If a match is found, we move on to do a random TLB write. Otherwise we produce a kernel panic.
 
-LOAD CODE
-%\lstinputlisting[language=C, firstline=55, lastline=140]{../../vm/tlb.c}
+An important point is that we have chosen to throw a kernel panic both in the case of a kernel exception and a userland exception. We differentiate between the two by letting the TLB exception functions take a \texttt{kernelcall} argument which is either \texttt{0} (call from userland) or \texttt{1} (call from kernel). These values are hardcoded in the userland and kernel exception programs, like so:
+
+\lstinputlisting[language=C, firstline=71, lastline=80]{../../proc/exception.c}
+\texttt{proc/exception.c}
+
+\lstinputlisting[language=C, firstline=82, lastline=91]{../../kernel/exception.c}
+\texttt{kernel/exception.c}
+
+\
+
+From a user standpoint this is clearly bad, since for example a userland segfault would result in the kernel crashing, instead of doing something more sane - aborting the violating thread seems more reasonable. We see no apparent way of doing so, however, so we leave the code as it is. With our clear distinction between the two types of errors it is relatively simple to implement this in the future.
+ 
+The code for the load exception part of \texttt{vm/tlb.c} is shown below.
+\lstinputlisting[language=C, firstline=66, lastline=111]{../../vm/tlb.c}
+
+The TLB modified exception is much more simple than load or store - we know that an error has occurred and we just need to differentiate between a userland and a kernel type. The code is shown below. 
+\lstinputlisting[language=C, firstline=55, lastline=64]{../../vm/tlb.c}
 
 \section{Task 2: Dynamic allocation for user processes}
 
