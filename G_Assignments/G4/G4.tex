@@ -69,6 +69,12 @@
 \newpage
 
 \section{Task 1: TLB exception handling in Buenos}
+The TLB load and store exceptions behave in almost the same way. Hence we will just show the code for load below. First, we retrieve the state of the current thread. Then we make a new entry and copy the fields from the offending thread into this new entry. We then check if the 13th most significant bit of the \texttt{badvaddr} of the offending thread is set or not and capture the result in the \texttt{is\_odd} variable - this checks if the page we wish to look up is odd or even.
+
+We then look for a match between the newly created entry and pages in the page table 
+
+LOAD CODE
+%\lstinputlisting[language=C, firstline=55, lastline=140]{../../vm/tlb.c}
 
 \section{Task 2: Dynamic allocation for user processes}
 
