@@ -2,7 +2,11 @@
 
 int main(void)
 {
-  malloc(20);
-  syscall_exit(2);
+  int* a = (int*) malloc(2*sizeof(int));
+  a[0] = 10;
+  a[1] = 20;
+
+  printf("a[0] = %d, a[1] = %d\n",a[0],a[1]);
+  free(a);
   return 0;
 }
