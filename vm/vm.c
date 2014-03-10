@@ -67,7 +67,6 @@ void vm_init(void)
        Any extensions to pagetables should also provide this information
        in this form. */
     KERNEL_ASSERT(sizeof(tlb_entry_t) == 12);
-
     pagepool_init();
     kmalloc_disable();
 }

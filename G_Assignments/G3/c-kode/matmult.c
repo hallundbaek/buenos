@@ -165,7 +165,7 @@ int main(int argc, char* argv[]) {
   struct timeval start, end;
   long mtime, secs, usecs;
   gettimeofday(&start, NULL);
-  /* Start the threads. */
+  /* Add the threads to the stack. */
   for (i = 0; i < size; i++) {
     t = &tasks[i];
     t->row_a = a + i * size;
@@ -175,6 +175,7 @@ int main(int argc, char* argv[]) {
     t->row_result = r + i * size;
     stack_push(&stack, t);
   }
+  /* Start the threads. */
   for (i = 0; i < no_of_threads; i++) {
     if (pthread_create(&threads[i], NULL, worker, NULL) != 0) {
       perror("pthread_create");

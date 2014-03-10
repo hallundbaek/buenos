@@ -39,19 +39,73 @@
 #include "vm/tlb.h"
 #include "vm/pagetable.h"
 
-void tlb_modified_exception(void)
+static void print_tlb_debug(void)
 {
-    KERNEL_PANIC("Unhandled TLB modified exception");
+   tlb_exception_state_t tes;
+   _tlb_get_exception_state(&tes);
+
+   kprintf("TLB exception. Details:\n"
+           "Failed Virtual Address: 0x%8.8x\n"
+           "Virtual Page Number:    0x%8.8x\n"
+           "ASID (Thread number):   %d\n",
+           tes.badvaddr, tes.badvpn2, tes.asid);
 }
 
-void tlb_load_exception(void)
+void tlb_modified_exception(int kernelcall)
 {
-    KERNEL_PANIC("Unhandled TLB load exception");
+  if (kernelcall) {
+    print_tlb_debug();
+    KERNEL_PANIC("kernel TLB modify exception");
+  } else {
+    print_tlb_debug();
+    KERNEL_PANIC("userland TLB modify exception");
+  }
 }
 
-void tlb_store_exception(void)
+void tlb_load_exception(int kernelcall)
 {
-    KERNEL_PANIC("Unhandled TLB store exception");
+  tlb_exception_state_t exn_state;
+  int tlb_index; 
+  tlb_entry_t entry;  
+
+  _tlb_get_exception_state(&exn_state);
+  entry.VPN2 = exn_state.badvpn2;
+  entry.ASID = exn_state.asid; 
+  tlb_index = _tlb_probe(&entry);
+  if (tlb_index < 0) {
+    if (kernelcall) {
+      print_tlb_debug();
+      KERNEL_PANIC("kernel TLB load exception");
+    } else {
+      print_tlb_debug();
+      KERNEL_PANIC("userland TLB load exception");
+    }
+  } else {
+    _tlb_write_random(&entry);
+  }
+}
+
+void tlb_store_exception(int kernelcall)
+{
+  tlb_exception_state_t exn_state;
+  int tlb_index; 
+  tlb_entry_t entry;  
+
+  _tlb_get_exception_state(&exn_state);
+  entry.VPN2 = exn_state.badvpn2;
+  entry.ASID = exn_state.asid; 
+  tlb_index = _tlb_probe(&entry);
+  if (tlb_index < 0) {
+    if (kernelcall) {
+      print_tlb_debug();
+      KERNEL_PANIC("kernel TLB store exception");
+    } else {
+      print_tlb_debug();
+      KERNEL_PANIC("userland TLB store exception");
+    }
+  } else {
+    _tlb_write_random(&entry);
+  }
 }
 
 /**

@@ -228,14 +228,13 @@ void init(void)
   kprintf("Creating initialization thread\n");
   startup_thread = thread_create(&init_startup_thread, 0);
   thread_run(startup_thread);
-
   kprintf("Starting threading system and SMP\n");
-
   /* Let other CPUs run */
   kernel_bootstrap_finished = 1;
 
   _interrupt_clear_bootstrap();
   _interrupt_enable();
+  kprintf("testsetset");
 
   /* Enter context switch, scheduler will be run automatically,
    * since thread_switch() behaviour is identical to timer tick

@@ -81,53 +81,50 @@ void kernel_exception_handle(int exception)
 
     switch(exception) {
     case EXCEPTION_TLBM:
-        print_tlb_debug();
-	KERNEL_PANIC("TLB Modification: not handled yet");
-	break;
+      tlb_modified_exception(1);
+      break;
     case EXCEPTION_TLBL:
-        print_tlb_debug();
-	KERNEL_PANIC("TLB Load: not handled yet");
-	break;
+      tlb_load_exception(1);
+      break;
     case EXCEPTION_TLBS:
-        print_tlb_debug();
-	KERNEL_PANIC("TLB Store: not handled yet");
-	break;
+      tlb_store_exception(1);
+      break;
     case EXCEPTION_ADDRL:
-	print_tlb_debug();
-	KERNEL_PANIC("Address Error Load: not handled yet");
-	break;
+      print_tlb_debug();
+      KERNEL_PANIC("Address Error Load: not handled yet");
+      break;
     case EXCEPTION_ADDRS:
-	print_tlb_debug();
-	KERNEL_PANIC("Address Error Store: not handled yet");
-	break;
+      print_tlb_debug();
+      KERNEL_PANIC("Address Error Store: not handled yet");
+      break;
     case EXCEPTION_BUSI:
-	print_tlb_debug();
-	KERNEL_PANIC("Bus Error Instruction: not handled yet");
-	break;
+      print_tlb_debug();
+      KERNEL_PANIC("Bus Error Instruction: not handled yet");
+      break;
     case EXCEPTION_BUSD:
-	print_tlb_debug();
-	KERNEL_PANIC("Bus Error Data: not handled yet");
-	break;
+      print_tlb_debug();
+      KERNEL_PANIC("Bus Error Data: not handled yet");
+      break;
     case EXCEPTION_SYSCALL:
-	KERNEL_PANIC("Syscall: From _kernel_ mode?");
-	break;
+      KERNEL_PANIC("Syscall: From _kernel_ mode?");
+      break;
     case EXCEPTION_BREAK:
-	KERNEL_PANIC("Breakpoint: not handled yet");
-	break;
+      KERNEL_PANIC("Breakpoint: not handled yet");
+      break;
     case EXCEPTION_RESVI:
-	KERNEL_PANIC("Reserved instruction: not handled yet");
-	break;
+      KERNEL_PANIC("Reserved instruction: not handled yet");
+      break;
     case EXCEPTION_COPROC:
-	KERNEL_PANIC("Coprocessor unusable: buggy assembler code?");
-	break;
+      KERNEL_PANIC("Coprocessor unusable: buggy assembler code?");
+      break;
     case EXCEPTION_AOFLOW:
-	KERNEL_PANIC("Arithmetic overflow: buggy assembler code?");
-	break;
+      KERNEL_PANIC("Arithmetic overflow: buggy assembler code?");
+      break;
     case EXCEPTION_TRAP:
-	KERNEL_PANIC("Trap: this just should not happen");
-	break;
+      KERNEL_PANIC("Trap: this just should not happen");
+      break;
     default:
-	KERNEL_PANIC("Unknown exception");
+      KERNEL_PANIC("Unknown exception");
     }
 
     /* Interrupts are disabled by setting EXL after this point. */

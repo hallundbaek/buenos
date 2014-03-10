@@ -69,7 +69,7 @@
 \newpage
 
 \section{Task 1: A Thread-Safe Stack}
-
+\input{opg1.tex}
 \section{Task 2: Userland Semaphores for Buenos}
 We have added the following cases to \texttt{proc/syscall.c}:
 
@@ -98,27 +98,5 @@ The destroy function simply runs through the user semaphore table, invalidating 
 The code for \texttt{proc/usr\_semaphores.c} is shown below:
 
 \lstinputlisting[language=C]{../../proc/usr_semaphore.c}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+For testing we used the handed out program \texttt{tests/barrier.c} and the two programs that are run by it \texttt{tests/prog0.c} and \texttt{tests/prog1.c}. We ran \texttt{barrier} and it ran as desired, which concludes our testing.
 \end{document}
