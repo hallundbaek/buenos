@@ -50,20 +50,20 @@
 
 /* Check whether given (virtual) address is even or odd mapping
    in a pair of mappings for TLB. */
-#define ADDR_IS_ON_ODD_PAGE(addr)  ((addr) & 0x00001000)  
-#define ADDR_IS_ON_EVEN_PAGE(addr) (!((addr) & 0x00001000))  
+#define ADDR_IS_ON_ODD_PAGE(addr)  ((addr) & 0x00001000)
+#define ADDR_IS_ON_EVEN_PAGE(addr) (!((addr) & 0x00001000))
 
 
 /**
  * Initializes virtual memory system. Initialization consists of page
  * pool initialization and disabling static memory reservation. After
  * this kmalloc() may not be used anymore.
- */ 
+ */
 void vm_init(void)
 {
     /* Make sure that tlb_entry_t really is exactly 3 registers wide
        and thus probably also matches the hardware TLB registers. This
-       is needed for assembler wrappers used for TLB manipulation. 
+       is needed for assembler wrappers used for TLB manipulation.
        Any extensions to pagetables should also provide this information
        in this form. */
     KERNEL_ASSERT(sizeof(tlb_entry_t) == 12);
@@ -134,8 +134,8 @@ void vm_destroy_pagetable(pagetable_t *pagetable)
  *
  */
 
-void vm_map(pagetable_t *pagetable, 
-	    uint32_t physaddr, 
+void vm_map(pagetable_t *pagetable,
+	    uint32_t physaddr,
 	    uint32_t vaddr,
             int dirty)
 {
@@ -145,7 +145,7 @@ void vm_map(pagetable_t *pagetable,
 
     for(i=0; i<pagetable->valid_count; i++) {
 	if(pagetable->entries[i].VPN2 == (vaddr >> 13)) {
-	    /* TLB has separate mappings for even and odd 
+	    /* TLB has separate mappings for even and odd
 	       virtual pages. Let's handle them separately here,
 	       and we have much more fun when updating the TLB later.*/
 	    if(ADDR_IS_ON_EVEN_PAGE(vaddr)) {
@@ -219,7 +219,7 @@ void vm_unmap(pagetable_t *pagetable, uint32_t vaddr)
 {
     pagetable = pagetable;
     vaddr     = vaddr;
-    
+
     /* Not implemented */
 }
 

@@ -195,7 +195,7 @@ void process_start(process_id_t pid)
     (CONFIG_USERLAND_STACK_SIZE-1)*PAGE_SIZE;
   memoryset((void *)stack_bottom, 0, CONFIG_USERLAND_STACK_SIZE*PAGE_SIZE);
 
-  process_table[pid].heap_end = stack_bottom;
+  process_table[pid].heap_end = (void*) stack_bottom;
   /* Copy segments */
 
   if (elf.ro_size > 0) {
@@ -254,7 +254,7 @@ process_id_t process_spawn(const char* executable)
   process_table[pid].next_zombie = -1;
   process_table[pid].parent = my_pid;
   process_table[pid].children = 0;
-  process_table[pid].heap_end = -1;
+  process_table[pid].heap_end = (void*) -1;
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_table_slock);
 
