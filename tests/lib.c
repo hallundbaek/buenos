@@ -736,13 +736,10 @@ static const size_t MIN_ALLOC_SIZE = sizeof(free_block_t);
 
 free_block_t *free_list;
 
-byte heap[HEAP_SIZE];
-
 /* Initialise the heap - malloc et al won't work unless this is called
    first. */
 void heap_init()
 {
-  free_list = (free_block_t*) heap;
   free_list->size = HEAP_SIZE;
   free_list->next = NULL;
 }
@@ -750,13 +747,15 @@ void heap_init()
 
 /* Return a block of at least size bytes, or NULL if no such block 
    can be found.  */
-void *malloc(size_t size) {
+void *malloc(unsigned int size) {
   free_block_t *block;
   free_block_t **prev_p; /* Previous link so we can remove an element */
+  void* heap_ptr;
+  int free_size;
   if (size == 0) {
     return NULL;
   }
-
+  heap_ptr = syscall_memlimit(NULL);
   /* Ensure block is big enough for bookkeeping. */
   size=MAX(MIN_ALLOC_SIZE,size);
   /* Word-align */
@@ -767,15 +766,11 @@ void *malloc(size_t size) {
 
   /* Iterate through list of free blocks, using the first that is
      big enough for the request. */
-  for (block = free_list, prev_p = &free_list;
-       block;
-       prev_p = &(block->next), block = block->next) {
-    if ( (int)( block->size - size - sizeof(size_t) ) >= 
-         (int)( MIN_ALLOC_SIZE+sizeof(size_t) ) ) {
+  for (block = free_list, prev_p = &free_list; block; prev_p = &(block->next), block = block->next) {
+    if ( (int)( block->size - size - sizeof(size_t) ) >= (int)( MIN_ALLOC_SIZE+sizeof(size_t) ) ) {
       /* Block is too big, but can be split. */
       block->size -= size+sizeof(size_t);
-      free_block_t *new_block =
-        (free_block_t*)(((byte*)block)+block->size);
+      free_block_t *new_block = (free_block_t*) (((byte*)block)+block->size);
       new_block->size = size+sizeof(size_t);
       return ((byte*)new_block)+sizeof(size_t);
     } else if (block->size >= size + sizeof(size_t)) {
@@ -786,9 +781,15 @@ void *malloc(size_t size) {
     }
     /* Else, check the next block. */
   }
-
-  /* No heap space left. */
-  return NULL;
+  free_block_t* free_block = (free_block_t*) syscall_memlimit(heap_ptr + size + sizeof(size_t));
+  if ((free_size = size % 4096) != 0) {
+    free_block->size = free_size;
+    free_block->next = free_list;
+    free_list = free_block;
+  }
+  free_block_t* return_block = (free_block_t*) heap_ptr;
+  return_block->size = size + sizeof(size_t);
+  return heap_ptr + sizeof(size_t);
 }
 
 /* Return the block pointed to by ptr to the free pool. */
