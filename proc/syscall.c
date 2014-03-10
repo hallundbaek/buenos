@@ -82,25 +82,25 @@ void* syscall_memlimit(void *heap_end){
   int pagespan;
   int i;
   uint32_t phys_page;
-  uint32_t current_heap_end;
+  void* current_heap_end;
 
   current_thread = thread_get_current_thread_entry();
   current_process = process_get_current_process_entry();
   current_heap_end = current_process -> heap_end;
   if (heap_end == NULL) {
-    return (void*) current_heap_end;
+    return current_heap_end;
   }
-  if (heap_end < (void*) current_heap_end) {
-    eturn NULL;
+  if (heap_end < current_heap_end) {
+    return NULL;
   }
   pagespan = ((uint32_t) (heap_end - current_heap_end)) / PAGE_SIZE;
   for (i = 0; i < pagespan; i++) {
     phys_page = pagepool_get_phys_page();
     KERNEL_ASSERT(phys_page != 0);
     vm_map(current_thread->pagetable, phys_page,
-      current_heap_end + i*PAGE_SIZE, 1);
+      (((uint32_t) current_heap_end) & PAGE_SIZE_MASK) + i*PAGE_SIZE, 1);
   }
-  current_process -> heap_end = (int) heap_end;
+  current_process -> heap_end = heap_end;
   return heap_end;
 }
 /**
