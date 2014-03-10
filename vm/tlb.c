@@ -70,17 +70,23 @@ void tlb_load_exception(int kernelcall)
   tlb_entry_t my_entry;
   int i;
   int found;
+  int is_odd;
 
   my_table = thread_get_current_thread_entry();
   _tlb_get_exception_state(&exn_state);
   my_entry.VPN2 = exn_state.badvpn2;
   my_entry.ASID = exn_state.asid;
+  is_odd = (exn_state.badvaddr & (4096)) != 0;
   found = 0;
   for (i = 0; i < PAGETABLE_ENTRIES; i++) {
     my_entry = my_table -> pagetable -> entries[i];
     if (my_entry.VPN2 == exn_state.badvpn2 && my_entry.ASID == exn_state.asid) {
-      found = 1;
-      break;
+      if ((my_entry.V0 && !is_odd) || (my_entry.V1 && is_odd)) {
+        found = 1;
+        break;
+      } else {
+        break;
+      }
     }
   }
   if (!found) {
@@ -102,17 +108,23 @@ void tlb_store_exception(int kernelcall)
   tlb_entry_t my_entry;
   int i;
   int found;
+  int is_odd;
 
   my_table = thread_get_current_thread_entry();
   _tlb_get_exception_state(&exn_state);
   my_entry.VPN2 = exn_state.badvpn2;
   my_entry.ASID = exn_state.asid;
+  is_odd = (exn_state.badvaddr & (4096)) != 0;
   found = 0;
   for (i = 0; i < PAGETABLE_ENTRIES; i++) {
     my_entry = my_table -> pagetable -> entries[i];
     if (my_entry.VPN2 == exn_state.badvpn2 && my_entry.ASID == exn_state.asid) {
-      found = 1;
-      break;
+      if ((my_entry.V0 && !is_odd) || (my_entry.V1 && is_odd)) {
+        found = 1;
+        break;
+      } else {
+        break;
+      }
     }
   }
   if (!found) {
