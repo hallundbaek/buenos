@@ -87,11 +87,11 @@ void* syscall_memlimit(void *heap_end){
   current_thread = thread_get_current_thread_entry();
   current_process = process_get_current_process_entry();
   current_heap_end = current_process -> heap_end;
-  if (heap_end < (void*) current_heap_end) {
-    return NULL;
-  }
   if (heap_end == NULL) {
     return (void*) current_heap_end;
+  }
+  if (heap_end < (void*) current_heap_end) {
+    return NULL;
   }
   pagespan = ((uint32_t) (heap_end - current_heap_end)) / PAGE_SIZE;
   for (i = 0; i < pagespan; i++) {
@@ -100,7 +100,8 @@ void* syscall_memlimit(void *heap_end){
     vm_map(current_thread->pagetable, phys_page,
       current_heap_end + i*PAGE_SIZE, 1);
   }
-  return heap_end - 8;
+  current_process -> heap_end = (int) heap_end;
+  return heap_end;
 }
 /**
  * Handle system calls. Interrupts are enabled when this function is
@@ -159,6 +160,7 @@ void syscall_handle(context_t *user_context)
       break;
     case SYSCALL_MEMLIMIT:
       V0 = (int) syscall_memlimit((void *)A1);
+      break;
     default:
       KERNEL_PANIC("Unhandled system call\n");
     }

@@ -756,6 +756,7 @@ void *malloc(unsigned int size) {
     return NULL;
   }
   heap_ptr = syscall_memlimit(NULL);
+  printf("heap_ptr = %d \n",(int) heap_ptr);
   /* Ensure block is big enough for bookkeeping. */
   size=MAX(MIN_ALLOC_SIZE,size);
   /* Word-align */

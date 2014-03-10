@@ -231,7 +231,6 @@ void process_start(process_id_t pid)
   memoryset(&user_context, 0, sizeof(user_context));
   user_context.cpu_regs[MIPS_REGISTER_SP] = USERLAND_STACK_TOP;
   user_context.pc = elf.entry_point;
-  kprintf("%d\n", stack_bottom);
   thread_goto_userland(&user_context);
 
   KERNEL_PANIC("thread_goto_userland failed.");
