@@ -71,16 +71,23 @@ void tlb_load_exception(int kernelcall)
   int i;
   int found;
   int is_odd;
-
   my_table = thread_get_current_thread_entry();
+
+  // The exception info is loaded.
   _tlb_get_exception_state(&exn_state);
-  my_entry.VPN2 = exn_state.badvpn2;
-  my_entry.ASID = exn_state.asid;
+
+  // As the 13th bit of our vaddr tells us if it is the even or odd page
+  // we check whether this is set or not.
   is_odd = (exn_state.badvaddr & (4096)) != 0;
+
   found = 0;
+
+  // We loop over all the pagetable entries and look for a matching page.
   for (i = 0; i < PAGETABLE_ENTRIES; i++) {
     my_entry = my_table -> pagetable -> entries[i];
-    if (my_entry.VPN2 == exn_state.badvpn2 && my_entry.ASID == exn_state.asid) {
+    if (my_entry.VPN2 == exn_state.badvpn2 &&
+        my_entry.ASID == exn_state.asid) {
+      // We check whether the dirty bit is set for the odd or even page.
       if ((my_entry.V0 && !is_odd) || (my_entry.V1 && is_odd)) {
         found = 1;
         break;
@@ -89,6 +96,7 @@ void tlb_load_exception(int kernelcall)
       }
     }
   }
+  // If a page is not found we print the tlb debug, and do a kernel panic.
   if (!found) {
     if (kernelcall) {
       print_tlb_debug();
@@ -98,6 +106,7 @@ void tlb_load_exception(int kernelcall)
       KERNEL_PANIC("userland TLB load exception");
     }
   }
+  // If it is found we write the entry to a random place in the tlb.
   _tlb_write_random(&my_entry);
 }
 
@@ -109,17 +118,24 @@ void tlb_store_exception(int kernelcall)
   int i;
   int found;
   int is_odd;
-
   my_table = thread_get_current_thread_entry();
+
+  // The exception info is loaded.
   _tlb_get_exception_state(&exn_state);
-  my_entry.VPN2 = exn_state.badvpn2;
-  my_entry.ASID = exn_state.asid;
+
+  // As the 13th bit of our vaddr tells us if it is the even or odd page
+  // we check whether this is set or not.
   is_odd = (exn_state.badvaddr & (4096)) != 0;
+
   found = 0;
+
+  // We loop over all the pagetable entries and look for a matching page.
   for (i = 0; i < PAGETABLE_ENTRIES; i++) {
     my_entry = my_table -> pagetable -> entries[i];
-    if (my_entry.VPN2 == exn_state.badvpn2 && my_entry.ASID == exn_state.asid) {
-      if ((my_entry.V0 && !is_odd) || (my_entry.V1 && is_odd)) {
+    if (my_entry.VPN2 == exn_state.badvpn2
+        my_entry.ASID == exn_state.asid) {
+    // We check whether the dirty bit is set for the odd or even page.
+    if ((my_entry.V0 && !is_odd) || (my_entry.V1 && is_odd)) {
         found = 1;
         break;
       } else {
@@ -127,6 +143,7 @@ void tlb_store_exception(int kernelcall)
       }
     }
   }
+  // If a page is not found we print the tlb debug, and do a kernel panic.
   if (!found) {
     if (kernelcall) {
       print_tlb_debug();
@@ -136,6 +153,7 @@ void tlb_store_exception(int kernelcall)
       KERNEL_PANIC("userland TLB store exception");
     }
   }
+  // If it is found we write the entry to a random place in the tlb.
   _tlb_write_random(&my_entry);
 }
 
