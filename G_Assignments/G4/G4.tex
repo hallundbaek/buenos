@@ -91,6 +91,8 @@ The code for the load exception part of \texttt{vm/tlb.c} is shown below.
 The TLB modified exception is much more simple than load or store - we know that an error has occurred and we just need to differentiate between a userland and a kernel type. The code is shown below. 
 \lstinputlisting[language=C, firstline=55, lastline=64]{../../vm/tlb.c}
 
+Since TLB exceptions are now handled properly, all calls to \texttt{tlb\_fill} have been removed.
+
 \section{Task 2: Dynamic allocation for user processes}
 
 \section{Task 3: Extended tests for TLB exceptions and user-space allocation}
