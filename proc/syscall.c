@@ -45,6 +45,8 @@
 #include "fs/vfs.h"
 #include "kernel/thread.h"
 #include "proc/usr_semaphore.h"
+#include "vm/pagepool.h"
+#include "vm/vm.h"
 
 int syscall_write(uint32_t fd, char *s, int len)
 {
@@ -74,6 +76,32 @@ int syscall_read(uint32_t fd, char *s, int len)
   }
 }
 
+void* syscall_memlimit(void *heap_end){
+  thread_table_t* current_thread;
+  process_table_t* current_process;
+  int pagespan;
+  int i;
+  uint32_t phys_page;
+  uint32_t current_heap_end;
+
+  current_thread = thread_get_current_thread_entry();
+  current_process = process_get_current_process_entry();
+  current_heap_end = current_process -> heap_end;
+  if (heap_end < (void*) current_heap_end) {
+    return NULL;
+  }
+  if (heap_end == NULL) {
+    return (void*) current_heap_end;
+  }
+  pagespan = ((uint32_t) (heap_end - current_heap_end)) / PAGE_SIZE;
+  for (i = 0; i < pagespan; i++) {
+    phys_page = pagepool_get_phys_page();
+    KERNEL_ASSERT(phys_page != 0);
+    vm_map(current_thread->pagetable, phys_page,
+      current_heap_end + i*PAGE_SIZE, 1);
+  }
+  return heap_end - 8;
+}
 /**
  * Handle system calls. Interrupts are enabled when this function is
  * called.
@@ -129,6 +157,8 @@ void syscall_handle(context_t *user_context)
     case SYSCALL_SEM_DESTROY:
       V0 = syscall_sem_destroy((void *)A1);
       break;
+    case SYSCALL_MEMLIMIT:
+      V0 = (int) syscall_memlimit((void *)A1);
     default:
       KERNEL_PANIC("Unhandled system call\n");
     }

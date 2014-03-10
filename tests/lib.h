@@ -130,7 +130,7 @@ int snprintf(char *, int, const char *, ...);
 #define HEAP_SIZE 256 /* 256 byte heap - puny! */
 void heap_init(); /* Call this once before any other heap functions. */
 void *calloc(size_t nmemb, size_t size);
-void *malloc(size_t size);
+void *malloc(unsigned int size);
 void free(void *ptr);
 void *realloc(void *ptr, size_t size);
 #endif

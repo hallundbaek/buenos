@@ -195,6 +195,7 @@ void process_start(process_id_t pid)
     (CONFIG_USERLAND_STACK_SIZE-1)*PAGE_SIZE;
   memoryset((void *)stack_bottom, 0, CONFIG_USERLAND_STACK_SIZE*PAGE_SIZE);
 
+  process_table[pid].heap_end = stack_bottom;
   /* Copy segments */
 
   if (elf.ro_size > 0) {
@@ -230,6 +231,7 @@ void process_start(process_id_t pid)
   memoryset(&user_context, 0, sizeof(user_context));
   user_context.cpu_regs[MIPS_REGISTER_SP] = USERLAND_STACK_TOP;
   user_context.pc = elf.entry_point;
+  kprintf("%d\n", stack_bottom);
   thread_goto_userland(&user_context);
 
   KERNEL_PANIC("thread_goto_userland failed.");
@@ -253,7 +255,7 @@ process_id_t process_spawn(const char* executable)
   process_table[pid].next_zombie = -1;
   process_table[pid].parent = my_pid;
   process_table[pid].children = 0;
-
+  process_table[pid].heap_end = -1;
   intr_status = _interrupt_disable();
   spinlock_acquire(&process_table_slock);
 
