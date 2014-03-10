@@ -91,7 +91,7 @@ void* syscall_memlimit(void *heap_end){
     return (void*) current_heap_end;
   }
   if (heap_end < (void*) current_heap_end) {
-    return NULL;
+    eturn NULL;
   }
   pagespan = ((uint32_t) (heap_end - current_heap_end)) / PAGE_SIZE;
   for (i = 0; i < pagespan; i++) {

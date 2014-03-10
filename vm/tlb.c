@@ -88,7 +88,7 @@ void tlb_load_exception(int kernelcall)
     if (my_entry.VPN2 == exn_state.badvpn2 &&
         my_entry.ASID == exn_state.asid) {
       // We check whether the dirty bit is set for the odd or even page.
-      if ((!my_entry.V0 && !is_odd) || (!my_entry.V1 && is_odd)) {
+      if ((my_entry.V0 && !is_odd) || (my_entry.V1 && is_odd)) {
         found = 1;
         break;
       } else {
@@ -135,7 +135,7 @@ void tlb_store_exception(int kernelcall)
     if (my_entry.VPN2 == exn_state.badvpn2 &&
         my_entry.ASID == exn_state.asid) {
     // We check whether the dirty bit is set for the odd or even page.
-    if ((!my_entry.V0 && !is_odd) || (!my_entry.V1 && is_odd)) {
+    if ((my_entry.V0 && !is_odd) || (my_entry.V1 && is_odd)) {
         found = 1;
         break;
       } else {
