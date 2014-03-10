@@ -36,6 +36,7 @@
 
 #include "kernel/panic.h"
 #include "kernel/assert.h"
+#include "kernel/thread.h"
 #include "vm/tlb.h"
 #include "vm/pagetable.h"
 
@@ -65,14 +66,24 @@ void tlb_modified_exception(int kernelcall)
 void tlb_load_exception(int kernelcall)
 {
   tlb_exception_state_t exn_state;
-  int tlb_index; 
-  tlb_entry_t entry;  
+  thread_table_t* my_table;
+  tlb_entry_t my_entry;
+  int i;
+  int found;
 
+  my_table = thread_get_current_thread_entry();
   _tlb_get_exception_state(&exn_state);
-  entry.VPN2 = exn_state.badvpn2;
-  entry.ASID = exn_state.asid; 
-  tlb_index = _tlb_probe(&entry);
-  if (tlb_index < 0) {
+  my_entry.VPN2 = exn_state.badvpn2;
+  my_entry.ASID = exn_state.asid;
+  found = 0;
+  for (i = 0; i < PAGETABLE_ENTRIES; i++) {
+    my_entry = my_table -> pagetable -> entries[i];
+    if (my_entry.VPN2 == exn_state.badvpn2 && my_entry.ASID == exn_state.asid) {
+      found = 1;
+      break;
+    }
+  }
+  if (!found) {
     if (kernelcall) {
       print_tlb_debug();
       KERNEL_PANIC("kernel TLB load exception");
@@ -80,22 +91,31 @@ void tlb_load_exception(int kernelcall)
       print_tlb_debug();
       KERNEL_PANIC("userland TLB load exception");
     }
-  } else {
-    _tlb_write_random(&entry);
   }
+  _tlb_write_random(&my_entry);
 }
 
 void tlb_store_exception(int kernelcall)
 {
   tlb_exception_state_t exn_state;
-  int tlb_index; 
-  tlb_entry_t entry;  
+  thread_table_t* my_table;
+  tlb_entry_t my_entry;
+  int i;
+  int found;
 
+  my_table = thread_get_current_thread_entry();
   _tlb_get_exception_state(&exn_state);
-  entry.VPN2 = exn_state.badvpn2;
-  entry.ASID = exn_state.asid; 
-  tlb_index = _tlb_probe(&entry);
-  if (tlb_index < 0) {
+  my_entry.VPN2 = exn_state.badvpn2;
+  my_entry.ASID = exn_state.asid;
+  found = 0;
+  for (i = 0; i < PAGETABLE_ENTRIES; i++) {
+    my_entry = my_table -> pagetable -> entries[i];
+    if (my_entry.VPN2 == exn_state.badvpn2 && my_entry.ASID == exn_state.asid) {
+      found = 1;
+      break;
+    }
+  }
+  if (!found) {
     if (kernelcall) {
       print_tlb_debug();
       KERNEL_PANIC("kernel TLB store exception");
@@ -103,9 +123,8 @@ void tlb_store_exception(int kernelcall)
       print_tlb_debug();
       KERNEL_PANIC("userland TLB store exception");
     }
-  } else {
-    _tlb_write_random(&entry);
   }
+  _tlb_write_random(&my_entry);
 }
 
 /**
