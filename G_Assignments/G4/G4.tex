@@ -108,8 +108,7 @@ In general terms, the \texttt{syscall\_memlimit} function works by first assessi
 
 \subsection{Implement two library functions \texttt{malloc} and \texttt{free} in the user-space library}
 
-All modifications in this section is done to \texttt{tests/lib.c}. We start by removing the fixed-size heap array, since each PCB now have its own heap indicator variable.
-
+All modifications in this section is done to \texttt{tests/lib.c}. We start by removing the fixed-size heap array, since each PCB now have its own heap indicator variable. The major change in the function \texttt{malloc} is checking whether there is overhead when allocating the pages. This overhead will occur if $size\; \% \; 4096 \neq 0$, if this occurs we create a block of free memory with the size of the overhead. This is then added to the singly linked list as a free block, making it usable when another \texttt{malloc} call is issued for a size where this free block fits. For the \texttt{free} function we have made no changes as this should function independent on the changes we made throughout Buenos.
 
 \lstinputlisting[language=C, firstline=727, lastline=794]{../../tests/lib.c}
 
