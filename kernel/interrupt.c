@@ -149,6 +149,7 @@ void interrupt_register(uint32_t irq,
  */
 void interrupt_handle(uint32_t cause) {
     int this_cpu, i;
+    
     if(cause & INTERRUPT_CAUSE_SOFTWARE_0) {
         _interrupt_clear_sw0();
     }
@@ -196,7 +197,6 @@ void interrupt_handle(uint32_t cause) {
            you implement proper VM), you must manually call _tlb_set_asid
            here. See the implementation of tlb_fill on details how to do that.
         */
-   // 	tlb_fill(thread_get_current_thread_entry()->pagetable); 
-    _tlb_set_asid(thread_get_current_thread());
+	tlb_fill(thread_get_current_thread_entry()->pagetable);
     }
 }

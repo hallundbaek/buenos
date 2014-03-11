@@ -36,125 +36,22 @@
 
 #include "kernel/panic.h"
 #include "kernel/assert.h"
-#include "kernel/thread.h"
 #include "vm/tlb.h"
 #include "vm/pagetable.h"
 
-static void print_tlb_debug(void)
+void tlb_modified_exception(void)
 {
-   tlb_exception_state_t tes;
-   _tlb_get_exception_state(&tes);
-
-   kprintf("TLB exception. Details:\n"
-           "Failed Virtual Address: 0x%8.8x\n"
-           "Virtual Page Number:    0x%8.8x\n"
-           "ASID (Thread number):   %d\n",
-           tes.badvaddr, tes.badvpn2, tes.asid);
+    KERNEL_PANIC("Unhandled TLB modified exception");
 }
 
-void tlb_modified_exception(int kernelcall)
+void tlb_load_exception(void)
 {
-  if (kernelcall) {
-    print_tlb_debug();
-    KERNEL_PANIC("kernel TLB modify exception");
-  } else {
-    print_tlb_debug();
-    KERNEL_PANIC("userland TLB modify exception");
-  }
+    KERNEL_PANIC("Unhandled TLB load exception");
 }
 
-void tlb_load_exception(int kernelcall)
+void tlb_store_exception(void)
 {
-  tlb_exception_state_t exn_state;
-  thread_table_t* my_table;
-  tlb_entry_t my_entry;
-  int i;
-  int found;
-  int is_odd;
-  my_table = thread_get_current_thread_entry();
-
-  // The exception info is loaded.
-  _tlb_get_exception_state(&exn_state);
-
-  // As the 13th bit of our vaddr tells us if it is the even or odd page
-  // we check whether this is set or not.
-  is_odd = (exn_state.badvaddr & (4096)) != 0;
-
-  found = 0;
-
-  // We loop over all the pagetable entries and look for a matching page.
-  for (i = 0; i < PAGETABLE_ENTRIES; i++) {
-    my_entry = my_table -> pagetable -> entries[i];
-    if (my_entry.VPN2 == exn_state.badvpn2 &&
-        my_entry.ASID == exn_state.asid) {
-      // We check whether the dirty bit is set for the odd or even page.
-      if ((my_entry.V0 && !is_odd) || (my_entry.V1 && is_odd)) {
-        found = 1;
-        break;
-      } else {
-        break;
-      }
-    }
-  }
-  // If a page is not found we print the tlb debug, and do a kernel panic.
-  if (!found) {
-    if (kernelcall) {
-      print_tlb_debug();
-      KERNEL_PANIC("kernel TLB load exception");
-    } else {
-      print_tlb_debug();
-      KERNEL_PANIC("userland TLB load exception");
-    }
-  }
-  // If it is found we write the entry to a random place in the tlb.
-  _tlb_write_random(&my_entry);
-}
-
-void tlb_store_exception(int kernelcall)
-{
-  tlb_exception_state_t exn_state;
-  thread_table_t* my_table;
-  tlb_entry_t my_entry;
-  int i;
-  int found;
-  int is_odd;
-  my_table = thread_get_current_thread_entry();
-
-  // The exception info is loaded.
-  _tlb_get_exception_state(&exn_state);
-
-  // As the 13th bit of our vaddr tells us if it is the even or odd page
-  // we check whether this is set or not.
-  is_odd = (exn_state.badvaddr & (4096)) != 0;
-
-  found = 0;
-
-  // We loop over all the pagetable entries and look for a matching page.
-  for (i = 0; i < PAGETABLE_ENTRIES; i++) {
-    my_entry = my_table -> pagetable -> entries[i];
-    if (my_entry.VPN2 == exn_state.badvpn2 &&
-        my_entry.ASID == exn_state.asid) {
-    // We check whether the dirty bit is set for the odd or even page.
-    if ((my_entry.V0 && !is_odd) || (my_entry.V1 && is_odd)) {
-        found = 1;
-        break;
-      } else {
-        break;
-      }
-    }
-  }
-  // If a page is not found we print the tlb debug, and do a kernel panic.
-  if (!found) {
-    if (kernelcall) {
-      print_tlb_debug();
-      KERNEL_PANIC("kernel TLB store exception");
-    } else {
-      print_tlb_debug();
-      KERNEL_PANIC("userland TLB store exception");
-    }
-  }
-  // If it is found we write the entry to a random place in the tlb.
-  _tlb_write_random(&my_entry);
+    KERNEL_PANIC("Unhandled TLB store exception");
 }
 
 /**

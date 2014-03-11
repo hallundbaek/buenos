@@ -44,9 +44,7 @@
 #include "drivers/gcd.h"
 #include "fs/vfs.h"
 #include "kernel/thread.h"
-#include "proc/usr_semaphore.h"
 #include "vm/pagepool.h"
-#include "vm/vm.h"
 
 int syscall_write(uint32_t fd, char *s, int len)
 {
@@ -57,8 +55,7 @@ int syscall_write(uint32_t fd, char *s, int len)
     gcd = (gcd_t *)dev->generic_device;
     return gcd->write(gcd, s, len);
   } else {
-    KERNEL_PANIC("Write syscall not finished yet.");
-    return 0;
+    return vfs_write(fd - 3, s, len);
   }
 }
 
@@ -71,40 +68,10 @@ int syscall_read(uint32_t fd, char *s, int len)
     gcd = (gcd_t *)dev->generic_device;
     return gcd->read(gcd, s, len);
   } else {
-    KERNEL_PANIC("Read syscall not finished yet.");
-    return 0;
+    return vfs_read(fd - 3, s, len);
   }
 }
 
-void* syscall_memlimit(void *heap_end){
-  thread_table_t* current_thread;
-  process_table_t* current_process;
-  int pagespan;
-  int i;
-  uint32_t phys_page;
-  void* current_heap_end;
-
-  current_thread = thread_get_current_thread_entry();
-  current_process = process_get_current_process_entry();
-  current_heap_end = current_process -> heap_end;
-  current_heap_end = (current_heap_end + 4096) & 0xfffff000;
-  if (heap_end == NULL) {
-    return current_heap_end;
-  }
-  if (heap_end < (void*) current_heap_end) {
-    return NULL;
-  }
-  pagespan = ((uint32_t) ((heap_end - current_heap_end)) / PAGE_SIZE) + 1;
-
-  for (i = 0; i < pagespan; i++) {
-    phys_page = pagepool_get_phys_page();
-    KERNEL_ASSERT(phys_page != 0);
-    vm_map(current_thread->pagetable, phys_page,
-      (((uint32_t) current_heap_end) & PAGE_SIZE_MASK) + i*PAGE_SIZE, 1);
-  }
-  current_process -> heap_end = heap_end;
-  return heap_end;
-}
 /**
  * Handle system calls. Interrupts are enabled when this function is
  * called.
@@ -148,20 +115,20 @@ void syscall_handle(context_t *user_context)
     case SYSCALL_WRITE:
       V0 = syscall_write(A1, (char *)A2, A3);
       break;
-    case SYSCALL_SEM_OPEN:
-      V0 = (int) syscall_sem_open((char *)A1, A2);
+    case SYSCALL_OPEN:
+      V0 = (int) vfs_open((char *)A1) + 3;
       break;
-    case SYSCALL_SEM_PROCURE:
-      V0 = syscall_sem_p((void *)A1);
+    case SYSCALL_CLOSE:
+      V0 = vfs_close(A1 - 3);
       break;
-    case SYSCALL_SEM_VACATE:
-      V0 = syscall_sem_v((void *)A1);
+    case SYSCALL_SEEK:
+      V0 = vfs_seek(A1 - 3, A2);
       break;
-    case SYSCALL_SEM_DESTROY:
-      V0 = syscall_sem_destroy((void *)A1);
+    case SYSCALL_CREATE:
+      V0 = vfs_create((char *)A1, A2);
       break;
-    case SYSCALL_MEMLIMIT:
-      V0 = (int) syscall_memlimit((void *)A1);
+    case SYSCALL_DELETE:
+      V0 = vfs_remove((char *)A1);
       break;
     default:
       KERNEL_PANIC("Unhandled system call\n");

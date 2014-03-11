@@ -54,7 +54,6 @@
 #include "lib/debug.h"
 #include "lib/libc.h"
 #include "net/network.h"
-#include "proc/usr_semaphore.h"
 #include "proc/process.h"
 #include "vm/vm.h"
 
@@ -210,9 +209,6 @@ void init(void)
   kwrite("Initializing semaphores\n");
   semaphore_init();
 
-  kwrite("Initializing userland semaphores\n");
-  usr_semaphore_init();
-
   kwrite("Initializing device drivers\n");
   device_init();
 
@@ -228,13 +224,14 @@ void init(void)
   kprintf("Creating initialization thread\n");
   startup_thread = thread_create(&init_startup_thread, 0);
   thread_run(startup_thread);
+
   kprintf("Starting threading system and SMP\n");
+
   /* Let other CPUs run */
   kernel_bootstrap_finished = 1;
 
   _interrupt_clear_bootstrap();
   _interrupt_enable();
-  kprintf("testsetset");
 
   /* Enter context switch, scheduler will be run automatically,
    * since thread_switch() behaviour is identical to timer tick
