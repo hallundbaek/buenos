@@ -59,67 +59,26 @@
 \cfoot[]{\thepage} %current page number 
 \rfoot[]{} %clear standard settings
 
-\title{OSM\\G assignment 4}
+\title{OSM\\G assignment 5}
 \author{Tobias Hallundbæk Petersen (xtv657)\\Ola Rønning (vdl761)\\Nikolaj Høyer (ctl533)}
-\date{March 10\textsuperscript{th}, 2014}
+\date{March 17\textsuperscript{th}, 2014}
 
 \begin{document}
 \maketitle
 \tableofcontents
 \newpage
 
-\section{TLB exception handling in Buenos}
-The TLB load and store exceptions behave in almost the same way. Hence we will just show the code for load below. First, we retrieve the state of the offending thread. Then we check if the 13th most significant bit of the \texttt{badvaddr} of this thread is set or not and capture the result in the \texttt{is\_odd} variable - this checks if the page we wish to look up is odd or even.
+\section{System calls for the Buenos file system}
+We have extended the syscall cases in \texttt{proc/syscall.c} with the syscalls shown below:
+\lstinputlisting[language=C, firstline=118, lastline=132]{../../proc/syscall.c}
 
-We then look for a match between the \texttt{badvpn2} and \texttt{asid} fields of the offending thread and pages in the page table while also checking if the dirty bit is set. If a match is found, we move on to do a random TLB write. Otherwise we produce a kernel panic.
+Moreover, we have modified the \texttt{syscall\_write} and \texttt{syscall\_read} functions, \texttt{proc/syscall\_write} is shown below:
+\lstinputlisting[language=C, firstline=49, lastline=61]{../../proc/syscall.c}
 
-An important point is that we have chosen to throw a kernel panic both in the case of a kernel exception and a userland exception. We differentiate between the two by letting the TLB exception functions take a \texttt{kernelcall} argument which is either \texttt{0} (call from userland) or \texttt{1} (call from kernel). These values are hardcoded in the userland and kernel exception programs, like so:
+The functions have been altered to check the \texttt{fd} parameter and execute the existing \texttt{gcd} write if we want to write to \texttt{stdout} or \texttt{stderr}. Otherwise we interpret fd as ... and execute a \texttt{vfs\_write}. \texttt{fd} represents and we -3 because...
 
-\lstinputlisting[language=C, firstline=71, lastline=80]{../../proc/exception.c}
-\texttt{proc/exception.c}
+The same applies to \texttt{syscall\_read}. Here we only need to check if \texttt{fd} is set to \texttt{stdin}, since we can't write to \texttt{stderr}.
 
-\lstinputlisting[language=C, firstline=82, lastline=91]{../../kernel/exception.c}
-\texttt{kernel/exception.c}
-
-\
-
-From a user standpoint this is clearly bad, since for example a userland segfault would result in the kernel crashing, instead of doing something more sane - aborting the violating thread seems more reasonable. We see no apparent way of doing so, however, so we leave the code as it is. With our clear distinction between the two types of errors it is relatively simple to implement this in the future.
-
-The code for the load exception part of \texttt{vm/tlb.c} is shown below.
-\lstinputlisting[language=C, firstline=66, lastline=111]{../../vm/tlb.c}
-
-The TLB modified exception is much more simple than load or store - we know that an error has occurred and we just need to differentiate between a userland and a kernel type. The code is shown below. 
-\lstinputlisting[language=C, firstline=55, lastline=64]{../../vm/tlb.c}
-
-Since TLB exceptions are now handled properly, all calls to \texttt{tlb\_fill} have been removed.
-
-\section{Dynamic allocation for user processes}
-
-\subsection{Implement the system call \texttt{void* syscall\_memlimit (void *heap end)}}
-
-We have added a new case to the system call switch statement in \texttt{proc/syscall.c}:
-\lstinputlisting[language=C, firstline=161, lastline=163]{../../proc/syscall.c}
-together with the function \texttt{syscall\_memlimit}, also in \texttt{proc/syscall.c} (this could have been placed elsewhere, but for simplicity we have chosen to just place it in the syscall file):
-\lstinputlisting[language=C, firstline=79, lastline=105]{../../proc/syscall.c}
-
-This function relies on the addition of the variable \texttt{int heap\_end} to the \texttt{process\_table\_t} struct in \texttt{proc/process.h} - that is, for each PCB we add a pointer to where the heap of this particular PCB ends.
-
-In general terms, the \texttt{syscall\_memlimit} function works by first assessing how many pages we need in order to cover the span implied by the desired heap end - the \texttt{pagespan} variable. For each page we need to allocate, we retrieve a physical page and map this to a virtual page. We then set the heap end of the current process to the new heap end.
-
-\subsection{Implement two library functions \texttt{malloc} and \texttt{free} in the user-space library}
-
-All modifications in this section is done to \texttt{tests/lib.c}. We start by removing the fixed-size heap array, since each PCB now have its own heap indicator variable. The major change in the function \texttt{malloc} is checking whether there is overhead when allocating the pages. This overhead will occur if $size\; \% \; 4096 \neq 0$, if this occurs we create a block of free memory with the size of the overhead. This is then added to the singly linked list as a free block, making it usable when another \texttt{malloc} call is issued for a size where this free block fits. For the \texttt{free} function we have made no changes as this should function independent on the changes we made throughout Buenos.
-
-\lstinputlisting[language=C, firstline=727, lastline=794]{../../tests/lib.c}
-
-\section{Extended tests for TLB exceptions and user-space allocation}
-
-The program below, \texttt{tests/mallol.c} tests user space allocation. We test both a small array of size 2 and a large array of size 1100, which is filled from 0..649 with values 0..649. In both cases we also free the arrays. We test both arrays by picking values of the arrays to print and check that these values match what we expect.
-\lstinputlisting{../../tests/mallol.c}
-
-We also test for a heap overflow by multiplying our page size by 17 and try to \texttt{malloc} with this amount. This should cause a heap overflow, since we exceed the amount available for the heap.
-\lstinputlisting{../../tests/heapoverflow.c}
-
-Note that none of these tests pass, since our implementation of \texttt{malloc} or \texttt{sys call\_memlimit} is bugged.
+\section{A simple shell and directory listing support}
 
 \end{document}
