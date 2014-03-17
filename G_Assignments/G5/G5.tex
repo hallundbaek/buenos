@@ -80,5 +80,20 @@ The functions have been altered to check the \texttt{fd} parameter and execute t
 The same applies to \texttt{syscall\_read}. Here we only need to check if \texttt{fd} is set to \texttt{stdin}, since we can't write to \texttt{stderr}.
 
 \section{A simple shell and directory listing support}
+Firstly, we have extended the supplied \texttt{BUENOS} shell \texttt{osh.c} with the function \texttt{cmd\_exit}:
+\begin{lstlisting}
+int cmd_exit() {
+  syscall_exit();
+  return 0;
+}
+\end{lstlisting}
+The function is very simple - it utilises the exit syscall defined in \texttt{proc/syscall.c} to finish the current process, and returns \texttt{0} on success.
+
+Next, we define the \texttt{cmd\_rm} function to call the \texttt{syscall\_delete} function defined in task 1 with the input pathname.
+\begin{lstlisting}
+int cmd_help() {
+  help();
+  return 0;
+\end{lstlisting}
 
 \end{document}
